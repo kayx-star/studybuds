@@ -1,7 +1,6 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb } from "@/db";
@@ -10,7 +9,7 @@ import { complements, groups, students, type PlanStep, type Student } from "@/db
 import { ALL_SLOTS, GOALS, MODES, PACES, STYLE_TAGS, normalizeCourse, slotLabel } from "@/lib/constants";
 import { analyzeBio, planGroup, rankComplements } from "@/lib/gemini";
 import { commonSlots, complementPool, greedyGroup, recommend, ruleComplements, type MatchMode } from "@/lib/match";
-import { SID, currentStudentId } from "@/lib/session";
+import { currentStudentId } from "@/lib/session";
 
 const keys = <T extends readonly { key: string }[]>(list: T) =>
   list.map((x) => x.key) as [T[number]["key"], ...T[number]["key"][]];
@@ -53,9 +52,10 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const data = parsed.data;
 
-  const db = await getDb();
   const sid = await currentStudentId();
-  const [existing] = sid ? await db.select().from(students).where(eq(students.id, sid)) : [];
+  if (!sid) return { error: "登录已过期，请重新登录" };
+  const db = await getDb();
+  const [existing] = await db.select().from(students).where(eq(students.id, sid));
 
   // 自我介绍变了才重新请 Gemini 分析
   let aiSummary = existing?.aiSummary ?? null;
@@ -73,9 +73,8 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
       await db.delete(complements).where(eq(complements.studentId, existing.id));
     }
   } else {
-    const id = crypto.randomUUID();
-    await db.insert(students).values({ ...data, tags, aiSummary, id, createdAt: new Date() });
-    (await cookies()).set(SID, id, { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+    // 资料 id 与账号 id 相同
+    await db.insert(students).values({ ...data, tags, aiSummary, id: sid, createdAt: new Date() });
   }
   redirect("/me");
 }
@@ -92,7 +91,7 @@ function defaultPlan(course: string, slots: string[]): PlanStep[] {
 
 export async function formGroup(formData: FormData) {
   const sid = await currentStudentId();
-  if (!sid) redirect("/join");
+  if (!sid) redirect("/login");
   const course = String(formData.get("course") ?? "");
   const mode: MatchMode = formData.get("mode") === "complement" ? "complement" : "similar";
 
@@ -158,7 +157,7 @@ export async function formGroup(formData: FormData) {
 /** 互补匹配：请 Gemini 评估并缓存结果 */
 export async function findComplements(formData: FormData) {
   const sid = await currentStudentId();
-  if (!sid) redirect("/join");
+  if (!sid) redirect("/login");
   const course = String(formData.get("course") ?? "");
 
   const db = await getDb();
@@ -179,9 +178,4 @@ export async function findComplements(formData: FormData) {
       set: { picks, byAi: aiPicks !== null, createdAt: new Date() },
     });
   redirect("/me?mode=complement");
-}
-
-export async function logout() {
-  (await cookies()).delete(SID);
-  redirect("/");
 }

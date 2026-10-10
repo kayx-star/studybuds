@@ -1,5 +1,6 @@
 // 生成示例同学，方便本地体验匹配：npm run seed
 import { createClient } from "@libsql/client";
+import { randomBytes, scryptSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 const client = createClient({ url: process.env.DATABASE_URL ?? "file:local.db", authToken: process.env.DATABASE_AUTH_TOKEN });
@@ -24,18 +25,33 @@ const pick = (arr, n) => [...arr].sort(() => Math.random() - 0.5).slice(0, n);
 const one = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 
+// 示例同学的登录密码（仅本地测试数据）
+const DEMO_PASSWORD = "demo1234";
+const hashPassword = (pw) => {
+  const salt = randomBytes(16);
+  return `scrypt$${salt.toString("base64")}$${scryptSync(pw, salt, 64).toString("base64")}`;
+};
+
+await client.execute("DELETE FROM auth_sessions WHERE user_id IN (SELECT id FROM users WHERE email LIKE 'demo-%')");
+await client.execute("DELETE FROM users WHERE email LIKE 'demo-%'");
 await client.execute("DELETE FROM students WHERE contact LIKE 'demo-%'");
 for (const [i, name] of NAMES.entries()) {
   const courses = pick(COURSES, rand(1, 3));
   const topics = pick(courses.flatMap((c) => TOPICS[c]), 4);
   // 偏向晚上和周末，让匹配更真实
   const slots = pick(DAYS.flatMap((d) => PERIODS.map((p) => `${d}-${p}`)).filter((s) => s.endsWith("eve") || s.startsWith("sat") || s.startsWith("sun") || Math.random() < 0.2), rand(3, 7));
+  const id = crypto.randomUUID();
+  await client.execute({
+    sql: "INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
+    args: [id, `demo-${i}@example.com`, hashPassword(DEMO_PASSWORD), Math.floor(Date.now() / 1000)],
+  });
   await client.execute({
     sql: `INSERT INTO students (id, name, contact, courses, slots, pace, mode, goal, tags, group_size, bio, strong, weak, ai_summary, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, NULL, ?)`,
-    args: [crypto.randomUUID(), name, `demo-${i}@example.com`, JSON.stringify(courses), JSON.stringify(slots),
+    args: [id, name, `demo-${i}@example.com`, JSON.stringify(courses), JSON.stringify(slots),
       one(["slow", "medium", "fast"]), one(["online", "offline", "either"]), one(["pass", "good", "deep"]),
-      JSON.stringify(pick(TAGS, rand(1, 3))), rand(2, 4), topics.slice(0, 2).join("、"), topics.slice(2).join("、"), Date.now()],
+      JSON.stringify(pick(TAGS, rand(1, 3))), rand(2, 4), topics.slice(0, 2).join("、"), topics.slice(2).join("、"), Math.floor(Date.now() / 1000)],
   });
 }
 console.log(`已生成 ${NAMES.length} 位示例同学，课程：${COURSES.join("、")}`);
+console.log(`示例账号：demo-0@example.com ~ demo-${NAMES.length - 1}@example.com，密码 ${DEMO_PASSWORD}`);

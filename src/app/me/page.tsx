@@ -2,7 +2,8 @@ import { and, eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { findComplements, formGroup, logout } from "@/app/actions";
+import { findComplements, formGroup } from "@/app/actions";
+import { logout } from "@/app/auth-actions";
 import { SubmitButton } from "@/components/submit-button";
 import { getDb } from "@/db";
 import { getRatings } from "@/db/queries";
@@ -142,7 +143,7 @@ async function ComplementCourse({ me, all, course, ratings }: { me: Student; all
 async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
   const mode: MatchMode = (await searchParams).mode === "complement" ? "complement" : "similar";
   const sid = await currentStudentId();
-  if (!sid) redirect("/join");
+  if (!sid) redirect("/login?next=/me");
   const db = await getDb();
   const [all, allGroups, ratings] = await Promise.all([
     db.select().from(students),

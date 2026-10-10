@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { JoinForm } from "@/components/join-form";
 import { getDb } from "@/db";
@@ -7,8 +8,9 @@ import { currentStudentId } from "@/lib/session";
 
 async function FormWithProfile() {
   const sid = await currentStudentId();
+  if (!sid) redirect("/login?next=/join");
   const db = await getDb();
-  const [student] = sid ? await db.select().from(students).where(eq(students.id, sid)) : [];
+  const [student] = await db.select().from(students).where(eq(students.id, sid));
   return <JoinForm student={student ?? null} />;
 }
 

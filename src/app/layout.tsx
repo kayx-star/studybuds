@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
+import { NavUser } from "@/components/nav-user";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,9 +18,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/" className="font-semibold text-base">
               📚 学习搭子
             </Link>
-            <div className="ml-auto flex gap-5 text-muted">
-              <Link href="/join" className="hover:text-fg">我的资料</Link>
-              <Link href="/me" className="hover:text-fg">匹配与小组</Link>
+            <div className="ml-auto flex items-center gap-5 text-muted">
+              <Suspense>
+                <NavUser />
+              </Suspense>
             </div>
           </nav>
         </header>

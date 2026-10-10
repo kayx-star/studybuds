@@ -11,7 +11,7 @@
 ```bash
 npm install
 cp .env.example .env.local   # 填入 GEMINI_API_KEY
-npm run seed                 # 可选：生成 20 位示例同学
+npm run seed                 # 可选：生成 20 位示例同学（账号 demo-0@example.com ~ demo-19@example.com，密码 demo1234）
 npm run dev                  # 打开 http://localhost:3000
 ```
 
@@ -20,6 +20,7 @@ npm run dev                  # 打开 http://localhost:3000
 组队时把前 8 名候选交给 Gemini 挑选组员（`src/lib/gemini.ts`），并校验所有人仍有共同时间，否则回退到贪心算法。
 
 ## 功能
+- **登录**：邮箱 + 密码（scrypt 加盐哈希），会话令牌只存 SHA-256，30 天有效；同一邮箱连续输错 5 次锁 15 分钟（内存版，多实例部署需改存数据库）
 - **相似匹配 / 互补匹配**：互补模式由 Gemini 分析“你擅长 TA 的弱项、TA 擅长你的弱项”，结果缓存在 `complements` 表
 - **约自习**：按共同空闲时间推荐日期，组员报名，可导出 .ics 到日历
 - **AI 出题比拼**：Gemini 按章节/笔记出单选题，每人作答一次，有单次排名与小组总榜

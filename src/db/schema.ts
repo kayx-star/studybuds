@@ -89,6 +89,21 @@ export const reviews = sqliteTable("reviews", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
+/** 登录账号；students.id 与 users.id 相同（资料是账号的一部分） */
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
+/** 登录会话：cookie 里放随机令牌，这里只存它的 SHA-256 */
+export const authSessions = sqliteTable("auth_sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+});
+
 export type Student = typeof students.$inferSelect;
 export type Group = typeof groups.$inferSelect;
 export type StudySession = typeof studySessions.$inferSelect;
@@ -162,6 +177,18 @@ CREATE TABLE IF NOT EXISTS quiz_attempts (
   created_at INTEGER NOT NULL,
   PRIMARY KEY (quiz_id, student_id)
 );
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS auth_sessions_user ON auth_sessions (user_id);
 CREATE TABLE IF NOT EXISTS reviews (
   group_id TEXT NOT NULL,
   reviewer_id TEXT NOT NULL,
