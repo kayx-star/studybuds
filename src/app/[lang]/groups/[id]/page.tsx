@@ -12,6 +12,7 @@ import { getRatings } from "@/db/queries";
 import { groups, students } from "@/db/schema";
 import { localePath } from "@/i18n/config";
 import { slotList } from "@/i18n/format";
+import { localizeNames } from "@/i18n/names";
 import { getI18n } from "@/i18n/server";
 import { currentStudentId } from "@/lib/session";
 import { getTranslator } from "@/lib/translate";
@@ -23,7 +24,11 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
   if (!group) notFound();
 
   const [members, sid, ratings] = await Promise.all([
-    db.select().from(students).where(inArray(students.id, group.memberIds)),
+    db
+      .select()
+      .from(students)
+      .where(inArray(students.id, group.memberIds))
+      .then((list) => localizeNames(list, locale)),
     currentStudentId(),
     getRatings(),
   ]);

@@ -1,10 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import { requireMember } from "@/db/queries";
 import { codeFiles, students } from "@/db/schema";
+import { isLocale } from "@/i18n/config";
+import { displayName } from "@/i18n/names";
 
 /** 编辑器轮询用：返回文件当前版本；版本比 since 新时附带内容 */
 export async function GET(req: Request, ctx: RouteContext<"/[lang]/groups/[id]/code/state">) {
-  const { id } = await ctx.params;
+  const { id, lang } = await ctx.params;
   const member = await requireMember(id);
   if (!member) return Response.json({ error: "forbidden" }, { status: 403 });
 
@@ -20,7 +22,7 @@ export async function GET(req: Request, ctx: RouteContext<"/[lang]/groups/[id]/c
   const [by] = await member.db.select({ name: students.name }).from(students).where(eq(students.id, file.updatedBy));
   return Response.json({
     version: file.version,
-    by: by?.name ?? "",
+    by: by ? displayName(by.name, isLocale(lang) ? lang : "zh") : "",
     byMe: file.updatedBy === member.me.id,
     content: file.version > since ? file.content : undefined,
   });

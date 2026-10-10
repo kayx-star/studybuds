@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireMember } from "@/db/queries";
 import { codeFiles, students } from "@/db/schema";
 import { localePath } from "@/i18n/config";
+import { displayName } from "@/i18n/names";
 import { getActionI18n } from "@/i18n/server";
 import { FILE_NAME_RE, MAX_CODE_BYTES, starterCode } from "@/lib/code";
 import type { FormState } from "./group-actions";
@@ -51,7 +52,7 @@ export async function saveFile(input: {
   baseVersion: number;
   force?: boolean;
 }): Promise<SaveResult> {
-  const { t } = await getActionI18n();
+  const { locale, t } = await getActionI18n();
   const ctx = await requireMember(input.groupId);
   if (!ctx) return { ok: false, error: t.errors.notMember };
   if (new TextEncoder().encode(input.content).length > MAX_CODE_BYTES) return { ok: false, error: t.code.errors.tooBig };
@@ -62,7 +63,8 @@ export async function saveFile(input: {
 
   if (file.version !== input.baseVersion && !input.force) {
     const [by] = await ctx.db.select({ name: students.name }).from(students).where(eq(students.id, file.updatedBy));
-    return { ok: false, conflict: true, version: file.version, content: file.content, by: by?.name ?? "" };
+    const name = by ? displayName(by.name, locale) : "";
+    return { ok: false, conflict: true, version: file.version, content: file.content, by: name };
   }
 
   // 条件更新：防止两次保存同时通过上面的检查

@@ -5,12 +5,13 @@ import { SubmitButton } from "@/components/submit-button";
 import { getDb } from "@/db";
 import { getRatings } from "@/db/queries";
 import { invites, students, type Group, type Student } from "@/db/schema";
+import { localizeNames } from "@/i18n/names";
 import { getI18n } from "@/i18n/server";
 import { compatible, recommend } from "@/lib/match";
 
 /** 小组页上的邀请区：被邀请人看到接受/婉拒；组员看到待回复名单并可继续邀请 */
 export async function InvitePanel({ group, members, meId }: { group: Group; members: Student[]; meId: string | null }) {
-  const { t } = await getI18n();
+  const { locale, t } = await getI18n();
   const db = await getDb();
   const pending = await db
     .select()
@@ -18,7 +19,7 @@ export async function InvitePanel({ group, members, meId }: { group: Group; memb
     .where(and(eq(invites.groupId, group.id), eq(invites.status, "pending")));
   if (!meId) return null;
 
-  const all = await db.select().from(students);
+  const all = localizeNames(await db.select().from(students), locale);
   const nameOf = (id: string) => all.find((s) => s.id === id)?.name ?? t.common.left;
   const mine = pending.find((i) => i.inviteeId === meId);
 

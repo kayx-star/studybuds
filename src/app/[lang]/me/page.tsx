@@ -11,6 +11,7 @@ import { getRatings } from "@/db/queries";
 import { complements, groups, invites, students, type Group, type Invite, type Student } from "@/db/schema";
 import { localePath, type Locale } from "@/i18n/config";
 import { formatDateTime, reasonText, slotList, tagLabel } from "@/i18n/format";
+import { localizeNames } from "@/i18n/names";
 import { getI18n } from "@/i18n/server";
 import type { Dict } from "@/i18n/zh";
 import { geminiEnabled } from "@/lib/gemini";
@@ -244,7 +245,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
   if (!sid) redirect(to("/login?next=/me"));
   const db = await getDb();
   const [all, allGroups, ratings, pendingInvites] = await Promise.all([
-    db.select().from(students),
+    db.select().from(students).then((list) => localizeNames(list, locale)),
     db.select().from(groups),
     getRatings(),
     db.select().from(invites).where(eq(invites.status, "pending")),

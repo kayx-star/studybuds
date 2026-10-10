@@ -8,6 +8,7 @@ import { getDb } from "@/db";
 import { requireMember } from "@/db/queries";
 import { quizAttempts, quizzes, students, type QuizQuestion } from "@/db/schema";
 import { localePath } from "@/i18n/config";
+import { displayName } from "@/i18n/names";
 import { getI18n } from "@/i18n/server";
 import { getTranslator, type Translate } from "@/lib/translate";
 import type { Dict } from "@/i18n/zh";
@@ -63,7 +64,10 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
   const attempts = await db.select().from(quizAttempts).where(eq(quizAttempts.quizId, quiz.id));
   const mine = attempts.find((a) => a.studentId === ctx.me.id);
   const names = new Map(
-    (await db.select().from(students).where(inArray(students.id, ctx.group.memberIds))).map((s) => [s.id, s.name]),
+    (await db.select().from(students).where(inArray(students.id, ctx.group.memberIds))).map((s) => [
+      s.id,
+      displayName(s.name, locale),
+    ]),
   );
   const total = quiz.questions.length;
   const tr = await getTranslator(
