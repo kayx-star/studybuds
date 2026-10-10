@@ -52,6 +52,12 @@ export const STYLE_TAGS = [
   "考前冲刺",
 ] as const;
 
+export const DIFFICULTIES = [
+  { key: "easy", label: "基础" },
+  { key: "medium", label: "中等" },
+  { key: "hard", label: "挑战" },
+] as const;
+
 export type Pace = (typeof PACES)[number]["key"];
 export type Mode = (typeof MODES)[number]["key"];
 export type Goal = (typeof GOALS)[number]["key"];

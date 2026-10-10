@@ -150,6 +150,29 @@ export function JoinForm({ student }: { student: Student | null }) {
             ))}
           </select>
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label" htmlFor="strong">我擅长（可以帮别人）</label>
+            <input
+              id="strong"
+              name="strong"
+              className="input"
+              defaultValue={student?.strong}
+              placeholder="例如：极限计算、Python、英语口语"
+            />
+          </div>
+          <div>
+            <label className="label" htmlFor="weak">我想补强（需要帮助）</label>
+            <input
+              id="weak"
+              name="weak"
+              className="input"
+              defaultValue={student?.weak}
+              placeholder="例如：积分、指针、听力"
+            />
+          </div>
+          <p className="-mt-2 text-xs text-muted sm:col-span-2">用于「互补匹配」：帮你找到擅长你弱项、也需要你帮忙的同学。</p>
+        </div>
         <div>
           <label className="label" htmlFor="bio">自我介绍（Gemini 会据此补充你的学习画像）</label>
           <textarea

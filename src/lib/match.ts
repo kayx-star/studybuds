@@ -1,5 +1,8 @@
-import type { Student } from "@/db/schema";
+import type { ComplementPick, Student } from "@/db/schema";
 import { PACES, slotLabel } from "./constants";
+import type { Rating } from "./ratings";
+
+export type MatchMode = "similar" | "complement";
 
 export type PairMatch = {
   student: Student;
@@ -48,14 +51,61 @@ export function pairScore(a: Student, b: Student): Omit<PairMatch, "student"> {
   return { score: Math.round(score * 100), sharedSlots, reasons };
 }
 
+/** 互评加减分：满分 5 星 +6，3 星不变，1 星 -6 */
+function withRating(m: PairMatch, rating?: Rating): PairMatch {
+  if (!rating) return m;
+  const score = Math.max(0, Math.min(100, Math.round(m.score + (rating.avg - 3) * 3)));
+  return { ...m, score, reasons: [...m.reasons, `搭子评分 ${rating.avg.toFixed(1)}★（${rating.count} 条）`] };
+}
+
 /** 为某门课推荐搭子，按匹配度排序 */
-export function recommend(me: Student, all: Student[], course: string, limit = 8): PairMatch[] {
+export function recommend(
+  me: Student,
+  all: Student[],
+  course: string,
+  ratings: Map<string, Rating> = new Map(),
+  limit = 8,
+): PairMatch[] {
   return all
     .filter((s) => s.id !== me.id && s.courses.includes(course))
-    .map((s) => ({ student: s, ...pairScore(me, s) }))
+    .map((s) => withRating({ student: s, ...pairScore(me, s) }, ratings.get(s.id)))
     .filter((m) => m.score > 0)
     .sort((x, y) => y.score - x.score)
     .slice(0, limit);
+}
+
+/** 互补匹配的候选：同课、有共同时间、线上线下不冲突 */
+export function complementPool(me: Student, all: Student[], course: string, limit = 10) {
+  return all
+    .filter((s) => s.id !== me.id && s.courses.includes(course))
+    .filter((s) => intersect(me.slots, s.slots).length > 0)
+    .filter((s) => me.mode === "either" || s.mode === "either" || me.mode === s.mode)
+    .sort((a, b) => intersect(me.slots, b.slots).length - intersect(me.slots, a.slots).length)
+    .slice(0, limit);
+}
+
+const terms = (text: string) =>
+  text
+    .split(/[,，、;；。\s\n/]+/)
+    .map((t) => t.trim().toUpperCase())
+    .filter((t) => t.length >= 2);
+
+/** 规则版互补匹配（Gemini 不可用时）：看我的弱项是否出现在对方擅长里，反之亦然 */
+export function ruleComplements(me: Student, pool: Student[]): ComplementPick[] {
+  const hits = (wants: string, has: string) => {
+    const hay = has.toUpperCase();
+    return terms(wants).filter((t) => hay.includes(t));
+  };
+  return pool.map((s) => {
+    const theyHelpMe = hits(me.weak, s.strong);
+    const iHelpThem = hits(s.weak, me.strong);
+    const score = Math.min(100, theyHelpMe.length * 30 + iHelpThem.length * 30 + (theyHelpMe.length && iHelpThem.length ? 20 : 0));
+    const parts = [
+      theyHelpMe.length ? `TA 擅长你想补强的${theyHelpMe.join("、")}` : null,
+      iHelpThem.length ? `你可以帮 TA 补${iHelpThem.join("、")}` : null,
+    ].filter(Boolean);
+    return { id: s.id, score, reason: parts.join("；") || "暂未发现明显互补（双方填写擅长/薄弱后更准确）" };
+  });
 }
 
 export function commonSlots(members: Student[]) {
