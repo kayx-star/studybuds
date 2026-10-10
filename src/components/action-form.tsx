@@ -19,6 +19,11 @@ export function ActionForm({
       {children}
       {state.error && <p className="mt-3 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-600">{state.error}</p>}
       {state.ok && <p className="mt-3 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">{state.ok}</p>}
+      {state.link && (
+        <a href={state.link} className="mt-2 block break-all rounded-xl bg-amber-500/10 px-3 py-2 text-sm text-accent underline">
+          {state.link}
+        </a>
+      )}
     </form>
   );
 }

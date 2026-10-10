@@ -141,6 +141,14 @@ export const codeFiles = sqliteTable("code_files", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
+/** 重设密码令牌：邮件里放随机令牌，这里只存 SHA-256；一次性、30 分钟有效 */
+export const passwordResets = sqliteTable("password_resets", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  usedAt: integer("used_at", { mode: "timestamp" }),
+});
+
 /** 用户内容 / AI 内容的翻译缓存，按原文的 SHA-256 存 */
 export const translations = sqliteTable("translations", {
   hash: text("hash").primaryKey(),
@@ -256,6 +264,12 @@ CREATE TABLE IF NOT EXISTS code_files (
   updated_by TEXT NOT NULL,
   updated_at INTEGER NOT NULL,
   UNIQUE (group_id, name)
+);
+CREATE TABLE IF NOT EXISTS password_resets (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS translations (
   hash TEXT PRIMARY KEY,

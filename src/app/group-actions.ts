@@ -14,7 +14,8 @@ import { DIFFICULTIES } from "@/lib/constants";
 import { generateQuiz } from "@/lib/gemini";
 import { ensureTranslations } from "@/lib/translate";
 
-export type FormState = { error?: string; ok?: string };
+/** link：仅开发模式下展示重设密码链接时使用 */
+export type FormState = { error?: string; ok?: string; link?: string };
 
 // ---------- 约自习 ----------
 

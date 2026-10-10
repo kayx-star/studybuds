@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { CodeSpace } from "@/components/group/code-space";
 import { InvitePanel } from "@/components/group/invites";
+import { LeaveGroupButton } from "@/components/group/leave-button";
 import { Quizzes } from "@/components/group/quizzes";
 import { Reviews } from "@/components/group/reviews";
 import { Sessions } from "@/components/group/sessions";
@@ -99,6 +100,17 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
       </section>
 
       <Reviews group={group} members={members} meId={sid} />
+
+      {isMember && (
+        <div className="flex justify-end">
+          <LeaveGroupButton
+            groupId={group.id}
+            label={t.group.leave}
+            pending={t.group.leaving}
+            confirmText={t.group.leaveConfirm}
+          />
+        </div>
+      )}
     </div>
   );
 }

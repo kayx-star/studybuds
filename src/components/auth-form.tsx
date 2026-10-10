@@ -5,7 +5,15 @@ import { getI18n } from "@/i18n/server";
 import { ActionForm } from "./action-form";
 import { SubmitButton } from "./submit-button";
 
-export async function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: string }) {
+export async function AuthForm({
+  mode,
+  next,
+  notice,
+}: {
+  mode: "login" | "signup";
+  next?: string;
+  notice?: string;
+}) {
   const { locale, t } = await getI18n();
   const a = t.auth;
   const isLogin = mode === "login";
@@ -16,6 +24,7 @@ export async function AuthForm({ mode, next }: { mode: "login" | "signup"; next?
         <h1 className="text-2xl font-semibold">{isLogin ? a.loginTitle : a.signupTitle}</h1>
         <p className="mt-1 text-sm text-muted">{isLogin ? a.loginSubtitle : a.signupSubtitle}</p>
       </div>
+      {notice && <p className="rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">{notice}</p>}
       <ActionForm action={isLogin ? login : signup} className="card space-y-4">
         {next && <input type="hidden" name="next" value={next} />}
         <label className="block text-sm">
@@ -33,6 +42,11 @@ export async function AuthForm({ mode, next }: { mode: "login" | "signup"; next?
             autoComplete={isLogin ? "current-password" : "new-password"}
             className="input mt-1"
           />
+          {isLogin && (
+            <Link href={localePath(locale, "/forgot")} className="mt-1 block text-right text-xs text-accent hover:underline">
+              {a.forgot}
+            </Link>
+          )}
         </label>
         {!isLogin && (
           <label className="block text-sm">

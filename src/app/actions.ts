@@ -7,7 +7,19 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb } from "@/db";
 import { getRatings, requireMember } from "@/db/queries";
-import { complements, groups, invites, students, type PlanStep, type Student } from "@/db/schema";
+import {
+  codeFiles,
+  complements,
+  groups,
+  invites,
+  quizAttempts,
+  quizzes,
+  reviews,
+  studySessions,
+  students,
+  type PlanStep,
+  type Student,
+} from "@/db/schema";
 import { localePath } from "@/i18n/config";
 import { slotList } from "@/i18n/format";
 import { getActionI18n } from "@/i18n/server";
@@ -339,4 +351,36 @@ export async function findComplements(formData: FormData) {
     });
   after(() => ensureTranslations(picks.map((p) => p.reason)));
   redirect(to("/me?mode=complement"));
+}
+
+/** 退出小组：最后一人退出时连同小组数据一起删除 */
+export async function leaveGroup(formData: FormData) {
+  const { locale } = await getActionI18n();
+  const ctx = await requireMember(String(formData.get("groupId")));
+  if (!ctx) redirect(localePath(locale, "/me"));
+  const { db, group, me } = ctx;
+  const remaining = group.memberIds.filter((id) => id !== me.id);
+
+  if (remaining.length === 0) {
+    const quizIds = (await db.select({ id: quizzes.id }).from(quizzes).where(eq(quizzes.groupId, group.id))).map((q) => q.id);
+    if (quizIds.length > 0) await db.delete(quizAttempts).where(inArray(quizAttempts.quizId, quizIds));
+    await db.delete(quizzes).where(eq(quizzes.groupId, group.id));
+    await db.delete(studySessions).where(eq(studySessions.groupId, group.id));
+    await db.delete(codeFiles).where(eq(codeFiles.groupId, group.id));
+    await db.delete(reviews).where(eq(reviews.groupId, group.id));
+    await db.delete(invites).where(eq(invites.groupId, group.id));
+    await db.delete(groups).where(eq(groups.id, group.id));
+  } else {
+    const members = await db.select().from(students).where(inArray(students.id, remaining));
+    await db.update(groups).set({ memberIds: remaining, meetingSlots: commonSlots(members) }).where(eq(groups.id, group.id));
+    // 取消自己在这个小组自习里的报名
+    const sessions = await db.select().from(studySessions).where(eq(studySessions.groupId, group.id));
+    for (const s of sessions.filter((x) => x.attendees.includes(me.id))) {
+      await db
+        .update(studySessions)
+        .set({ attendees: s.attendees.filter((id) => id !== me.id) })
+        .where(eq(studySessions.id, s.id));
+    }
+  }
+  redirect(localePath(locale, "/me"));
 }
