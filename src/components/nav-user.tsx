@@ -2,7 +2,7 @@ import { and, count, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { logout } from "@/app/auth-actions";
 import { getDb } from "@/db";
-import { invites, messages, users } from "@/db/schema";
+import { friendships, invites, messages, users } from "@/db/schema";
 import { localePath } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
 import { currentStudentId } from "@/lib/session";
@@ -19,7 +19,7 @@ export async function NavUser() {
     );
   }
   const db = await getDb();
-  const [[user], [pending], [unread]] = await Promise.all([
+  const [[user], [pending], [unread], [requests]] = await Promise.all([
     db.select({ email: users.email }).from(users).where(eq(users.id, uid)),
     db
       .select({ n: count() })
@@ -29,6 +29,10 @@ export async function NavUser() {
       .select({ n: count() })
       .from(messages)
       .where(and(eq(messages.recipientId, uid), isNull(messages.readAt))),
+    db
+      .select({ n: count() })
+      .from(friendships)
+      .where(and(eq(friendships.addresseeId, uid), eq(friendships.status, "pending"))),
   ]);
   return (
     <>
@@ -36,6 +40,10 @@ export async function NavUser() {
       <Link href={to("/me")} className="hover:text-fg">
         {t.nav.matches}
         {pending.n > 0 && <span className="ml-1 rounded-full bg-red-500 px-1.5 text-xs text-white">{pending.n}</span>}
+      </Link>
+      <Link href={to("/friends")} className="hover:text-fg">
+        {t.friends.nav}
+        {requests.n > 0 && <span className="ml-1 rounded-full bg-red-500 px-1.5 text-xs text-white">{requests.n}</span>}
       </Link>
       <Link href={to("/messages")} className="hover:text-fg">
         {t.chat.nav}

@@ -12,6 +12,8 @@ const client = createClient({
 const db = drizzle(client);
 
 async function setup() {
+  // 多个进程同时写同一个 SQLite 文件时，遇到锁先等待最多 5 秒，而不是立刻报错
+  if (!process.env.DATABASE_URL?.startsWith("libsql")) await client.execute("PRAGMA busy_timeout = 5000");
   await client.executeMultiple(DDL);
   for (const sql of MIGRATIONS) await client.execute(sql).catch(() => {});
 }

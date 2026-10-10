@@ -1,7 +1,8 @@
 "use server";
 
 import { and, eq, inArray } from "drizzle-orm";
-import { refresh } from "next/cache";
+// 注意：正式（production）模式下 refresh() 不会让页面重新渲染，统一用 revalidatePath
+import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -290,7 +291,7 @@ export async function inviteMore(_prev: FormState, formData: FormData): Promise<
       members.every((m) => compatible(m, s)),
   );
   await sendInvites(group.id, me.id, invitees.map((s) => s.id));
-  refresh();
+  revalidatePath("/[lang]/groups/[id]", "page");
   return { ok: t.group.invitesSent };
 }
 
@@ -311,7 +312,8 @@ export async function respondInvite(formData: FormData) {
 
   await db.update(invites).set({ status: accept ? "accepted" : "declined" }).where(eq(invites.id, invite.id));
   if (!accept) {
-    refresh();
+    revalidatePath("/[lang]/me", "page");
+    revalidatePath("/[lang]/groups/[id]", "page");
     return;
   }
 

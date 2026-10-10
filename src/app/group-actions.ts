@@ -1,7 +1,8 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
-import { refresh } from "next/cache";
+// 注意：正式（production）模式下 refresh() 不会让页面重新渲染，统一用 revalidatePath
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
@@ -50,7 +51,7 @@ export async function createSession(_prev: FormState, formData: FormData): Promi
     createdAt: new Date(),
   });
   after(() => ensureTranslations([parsed.data.place, parsed.data.topic]));
-  refresh();
+  revalidatePath("/[lang]/groups/[id]", "page");
   return { ok: t.sessions.created };
 }
 
@@ -74,14 +75,14 @@ export async function toggleAttend(formData: FormData) {
     ? session.attendees.filter((id) => id !== me.id)
     : [...session.attendees, me.id];
   await db.update(studySessions).set({ attendees }).where(eq(studySessions.id, session.id));
-  refresh();
+  revalidatePath("/[lang]/groups/[id]", "page");
 }
 
 export async function cancelSession(formData: FormData) {
   const ctx = await loadSession(formData);
   if (!ctx || ctx.session.createdBy !== ctx.me.id) return;
   await ctx.db.delete(studySessions).where(eq(studySessions.id, ctx.session.id));
-  refresh();
+  revalidatePath("/[lang]/groups/[id]", "page");
 }
 
 // ---------- AI 出题比拼 ----------
@@ -186,6 +187,6 @@ export async function saveReview(_prev: FormState, formData: FormData): Promise<
     .insert(reviews)
     .values({ ...values, groupId: ctx.group.id, reviewerId: ctx.me.id, revieweeId: data.revieweeId })
     .onConflictDoUpdate({ target: [reviews.groupId, reviews.reviewerId, reviews.revieweeId], set: values });
-  refresh();
+  revalidatePath("/[lang]/groups/[id]", "page");
   return { ok: t.reviews.saved };
 }

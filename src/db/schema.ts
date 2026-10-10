@@ -143,6 +143,16 @@ export const codeFiles = sqliteTable("code_files", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
+/** 好友关系：pending = 等待对方接受；accepted = 已是好友。拒绝或删除时直接删掉这一行 */
+export const friendships = sqliteTable("friendships", {
+  id: text("id").primaryKey(),
+  requesterId: text("requester_id").notNull(),
+  addresseeId: text("addressee_id").notNull(),
+  status: text("status").$type<"pending" | "accepted">().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+export type Friendship = typeof friendships.$inferSelect;
+
 /** 私信：createdAt 用毫秒，保证同一秒内的消息顺序正确 */
 export const messages = sqliteTable("messages", {
   id: text("id").primaryKey(),
@@ -278,6 +288,15 @@ CREATE TABLE IF NOT EXISTS code_files (
   updated_at INTEGER NOT NULL,
   UNIQUE (group_id, name)
 );
+CREATE TABLE IF NOT EXISTS friendships (
+  id TEXT PRIMARY KEY,
+  requester_id TEXT NOT NULL,
+  addressee_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE (requester_id, addressee_id)
+);
+CREATE INDEX IF NOT EXISTS friendships_addressee ON friendships (addressee_id, status);
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY,
   sender_id TEXT NOT NULL,
