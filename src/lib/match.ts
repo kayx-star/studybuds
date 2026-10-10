@@ -17,6 +17,8 @@ export type Reason =
   | { kind: "preferredCampus"; campus: string }
   | { kind: "otherCampus"; campus: string }
   | { kind: "personalityFit" }
+  | { kind: "sameCourse"; codes: string[] }
+  | { kind: "sameSection"; indexes: string[] }
   | { kind: "rating"; avg: number; count: number };
 
 export type PairMatch = {
@@ -104,6 +106,21 @@ function withRating(m: PairMatch, rating?: Rating): PairMatch {
   return { ...m, score, reasons: [...m.reasons, { kind: "rating", avg: rating.avg, count: rating.count }] };
 }
 
+/** 课程层面的加分：同一门课 +10，同一个班（Index）再 +8；只看当前科目下的课程 */
+function withClasses(m: PairMatch, me: Student, subject: string): PairMatch {
+  const mine = me.classes.filter((c) => c.startsWith(subject + ":"));
+  const theirs = m.student.classes.filter((c) => c.startsWith(subject + ":"));
+  if (mine.length === 0 || theirs.length === 0) return m;
+  const courseOf = (c: string) => c.split("#")[0];
+  const sameCourse = [...new Set(mine.map(courseOf).filter((c) => theirs.some((x) => courseOf(x) === c)))];
+  const sameSection = mine.filter((c) => c.includes("#") && theirs.includes(c)).map((c) => c.split("#")[1]);
+  if (sameCourse.length === 0) return m;
+  const reasons: Reason[] = [{ kind: "sameCourse", codes: sameCourse }];
+  if (sameSection.length) reasons.push({ kind: "sameSection", indexes: sameSection });
+  const score = Math.min(100, m.score + 10 + (sameSection.length ? 8 : 0));
+  return { ...m, score, reasons: [...reasons, ...m.reasons] };
+}
+
 /** 为某门课推荐搭子，按匹配度排序 */
 export function recommend(
   me: Student,
@@ -114,7 +131,7 @@ export function recommend(
 ): PairMatch[] {
   return all
     .filter((s) => s.id !== me.id && s.courses.includes(course) && compatible(me, s))
-    .map((s) => withRating({ student: s, ...pairScore(me, s) }, ratings.get(s.id)))
+    .map((s) => withRating(withClasses({ student: s, ...pairScore(me, s) }, me, course), ratings.get(s.id)))
     .filter((m) => m.score > 0)
     .sort((x, y) => y.score - x.score)
     .slice(0, limit);

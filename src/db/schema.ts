@@ -5,7 +5,10 @@ export const students = sqliteTable("students", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   contact: text("contact").notNull(),
+  /** 科目代码，如 "198"；匹配同学的主要依据 */
   courses: text("courses", { mode: "json" }).$type<string[]>().notNull(),
+  /** 选填的具体课程："198:111" 或 "198:111#11389"（带 Index 班级） */
+  classes: text("classes", { mode: "json" }).$type<string[]>().notNull().default([]),
   slots: text("slots", { mode: "json" }).$type<string[]>().notNull(),
   pace: text("pace").$type<Pace>().notNull(),
   mode: text("mode").$type<Mode>().notNull(),
@@ -344,4 +347,5 @@ export const MIGRATIONS = [
   "ALTER TABLE students ADD COLUMN personality TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE students ADD COLUMN personality_pref TEXT NOT NULL DEFAULT 'any'",
   "ALTER TABLE reviews ADD COLUMN anonymous INTEGER NOT NULL DEFAULT 1",
+  "ALTER TABLE students ADD COLUMN classes TEXT NOT NULL DEFAULT '[]'",
 ];

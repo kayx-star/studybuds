@@ -25,6 +25,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // 跳过 Next 内部资源和带扩展名的静态文件（favicon.ico 等）
-  matcher: ["/((?!_next|.*\\.[^/]+$).*)"],
+  // 跳过 Next 内部资源、/api 接口和带扩展名的静态文件（favicon.ico 等）
+  matcher: ["/((?!_next|api/|.*\\.[^/]+$).*)"],
 };

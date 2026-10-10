@@ -49,6 +49,7 @@ import {
   type MatchMode,
 } from "@/lib/match";
 import { currentStudentId } from "@/lib/session";
+import { isValidClass } from "@/lib/courses";
 import { isSubjectCode, subjectLabel } from "@/lib/subjects";
 import { ensureTranslations } from "@/lib/translate";
 
@@ -59,11 +60,12 @@ const profileSchema = (e: Dict["join"]["errors"]) =>
   z.object({
     name: z.string().trim().min(1, e.name).max(20, e.nameLong),
     contact: z.string().trim().min(1, e.contact).max(50),
-    // 只接受科目表里的代码（如 "198"），去重
-    courses: z
+    // 只接受科目表里的代码（如 "198"），去重；所选课程的科目自动补进来
+    courses: z.array(z.string()),
+    classes: z
       .array(z.string())
-      .transform((list) => [...new Set(list.filter(isSubjectCode))])
-      .pipe(z.array(z.string()).min(1, e.courses).max(8, e.coursesMany)),
+      .transform((list) => [...new Set(list.filter(isValidClass))])
+      .pipe(z.array(z.string()).max(10, e.classesMany)),
     slots: z.array(z.enum(ALL_SLOTS)).min(1, e.slots),
     pace: z.enum(keys(PACES), { message: e.pace }),
     mode: z.enum(keys(MODES), { message: e.mode }),
@@ -89,6 +91,7 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
     name: formData.get("name"),
     contact: formData.get("contact"),
     courses: formData.getAll("courses").map(String),
+    classes: formData.getAll("classes").map(String),
     slots: formData.getAll("slots"),
     pace: formData.get("pace"),
     mode: formData.get("mode"),
@@ -106,7 +109,12 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
     personalityPref: formData.get("personalityPref"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const data = parsed.data;
+  const subjects = [
+    ...new Set([...parsed.data.courses, ...parsed.data.classes.map((c) => c.slice(0, 3))].filter(isSubjectCode)),
+  ];
+  if (subjects.length === 0) return { error: t.join.errors.courses };
+  if (subjects.length > 8) return { error: t.join.errors.coursesMany };
+  const data = { ...parsed.data, courses: subjects };
 
   const sid = await currentStudentId();
   if (!sid) return { error: t.join.errors.sessionExpired };

@@ -13,6 +13,7 @@ import {
   labelOf,
   slotLabel,
 } from "./constants";
+import { classInfo } from "./courses";
 import { subjectForPrompt } from "./subjects";
 import type { MatchMode } from "./match";
 import type { Rating } from "./ratings";
@@ -122,6 +123,13 @@ function describe(s: Student, extra: { score?: number; rating?: Rating } = {}) {
     `方式=${labelOf(MODES, s.mode)}`,
     `目标=${labelOf(GOALS, s.goal)}`,
     `风格=${s.tags.join("/") || "未填"}`,
+    s.classes.length
+      ? `在修课程=${s.classes
+          .map(classInfo)
+          .filter((c) => c !== null)
+          .map((c) => `${c.code} ${c.title}${c.index ? `（Index ${c.index}）` : ""}`)
+          .join("、")}`
+      : null,
     `擅长=${s.strong || "未填"}`,
     `想补强=${s.weak || "未填"}`,
     `期望人数=${s.groupSize}`,

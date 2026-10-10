@@ -10,7 +10,8 @@ export type SubjectOption = {
   search: string;
 };
 
-const MAX = 8;
+export const MAX_SUBJECTS = 8;
+const MAX = MAX_SUBJECTS;
 
 /**
  * 科目选择器：仿 Rutgers Course Search 的 Subject 下拉框。
@@ -20,20 +21,22 @@ const MAX = 8;
  */
 export function SubjectPicker({
   options,
-  initial,
+  selected,
+  onChange,
   placeholder,
   noMatch,
   maxReached,
   removeLabel,
 }: {
   options: SubjectOption[];
-  initial: string[];
+  /** 由父组件管理：选课程时会自动补上对应科目 */
+  selected: string[];
+  onChange: (codes: string[]) => void;
   placeholder: string;
   noMatch: string;
   maxReached: string;
   removeLabel: string;
 }) {
-  const [selected, setSelected] = useState<string[]>(initial);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -47,7 +50,7 @@ export function SubjectPicker({
 
   const add = (code: string) => {
     if (selected.length >= MAX || selected.includes(code)) return;
-    setSelected([...selected, code]);
+    onChange([...selected, code]);
     setQuery("");
     setActive(0);
     setOpen(false);
@@ -70,7 +73,7 @@ export function SubjectPicker({
               {byCode.get(code)?.label ?? code}
               <button
                 type="button"
-                onClick={() => setSelected(selected.filter((c) => c !== code))}
+                onClick={() => onChange(selected.filter((c) => c !== code))}
                 className="ml-1.5 text-muted hover:text-red-600"
                 aria-label={`${removeLabel} ${byCode.get(code)?.label ?? code}`}
               >

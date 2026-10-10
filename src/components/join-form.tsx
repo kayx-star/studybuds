@@ -1,9 +1,10 @@
 "use client";
 
-import { startTransition, useActionState } from "react";
+import { startTransition, useActionState, useState } from "react";
 import { saveProfile, type JoinState } from "@/app/actions";
 import type { Student } from "@/db/schema";
-import { SubjectPicker, type SubjectOption } from "./subject-picker";
+import { CoursePicker, type CourseItem, type CourseLabels } from "./course-picker";
+import { MAX_SUBJECTS, SubjectPicker, type SubjectOption } from "./subject-picker";
 
 type Option = { key: string; label: string };
 
@@ -36,6 +37,10 @@ export type JoinLabels = {
   subjectNoMatch: string;
   subjectMax: string;
   subjectRemove: string;
+  classes: string;
+  classesHint: string;
+  classLabels: CourseLabels;
+  initialClasses: CourseItem[];
   days: Option[];
   periods: Option[];
   paces: Option[];
@@ -93,6 +98,10 @@ function Choice({
 
 export function JoinForm({ student, l }: { student: Student | null; l: JoinLabels }) {
   const [state, action, isPending] = useActionState<JoinState, FormData>(saveProfile, {});
+  // 科目由这里统一管理：在下面选了课程，会自动把它的科目加进来
+  const [subjects, setSubjects] = useState<string[]>(() =>
+    (student?.courses ?? []).filter((c) => l.subjects.some((o) => o.code === c)),
+  );
 
   // 用 onSubmit 手动提交，避免 React 在校验失败后清空已填内容
   return (
@@ -124,14 +133,26 @@ export function JoinForm({ student, l }: { student: Student | null; l: JoinLabel
           <label className="label" htmlFor="courses">{l.courses}</label>
           <SubjectPicker
             options={l.subjects}
-            // 旧版自由填写的课程名不在科目表里，不带入选择器
-            initial={(student?.courses ?? []).filter((c) => l.subjects.some((o) => o.code === c))}
+            selected={subjects}
+            onChange={setSubjects}
             placeholder={l.coursesPlaceholder}
             noMatch={l.subjectNoMatch}
             maxReached={l.subjectMax}
             removeLabel={l.subjectRemove}
           />
           <p className="mt-1 text-xs text-muted">{l.coursesHint}</p>
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label" htmlFor="classes">{l.classes}</label>
+          <CoursePicker
+            initial={l.initialClasses}
+            subjects={subjects}
+            onAddSubject={(code) =>
+              setSubjects((prev) => (prev.includes(code) || prev.length >= MAX_SUBJECTS ? prev : [...prev, code]))
+            }
+            l={l.classLabels}
+          />
+          <p className="mt-1 text-xs text-muted">{l.classesHint}</p>
         </div>
       </div>
 

@@ -31,6 +31,7 @@ import { complementPool, recommend, type MatchMode } from "@/lib/match";
 import type { Rating } from "@/lib/ratings";
 import { currentStudentId } from "@/lib/session";
 import { getTranslator, type Translate } from "@/lib/translate";
+import { classInfo } from "@/lib/courses";
 import { subjectLabel } from "@/lib/subjects";
 
 type Ctx = {
@@ -88,6 +89,17 @@ function ProfileDetails({ s, rating, t, tr }: { s: Student; rating?: Rating; t: 
             <span key={x} className="chip">{x}</span>
           ))}
         </div>
+        {s.classes.length > 0 && (
+          <p>
+            <span className="text-muted">{t.me.classesLabel}</span>
+            {t.list(
+              s.classes
+                .map(classInfo)
+                .filter((c) => c !== null)
+                .map((c) => `${c.code} ${tr(c.title)}${c.index ? ` (${t.join.sectionLabel(c.section ?? "", c.index, "")})` : ""}`),
+            )}
+          </p>
+        )}
         {s.campus && (
           <p>
             <span className="text-muted">{t.me.campusLabel}</span>
@@ -416,6 +428,8 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
       ...me.courses,
       ...shownGroups.map((g) => g.name),
       ...classmates.flatMap((s) => [s.aiSummary, s.strong, s.weak, s.bio]),
+      // 课程名是英文官方名，中文/西语页面翻译后显示
+      ...classmates.flatMap((s) => s.classes.map((c) => classInfo(c)?.title)),
       ...myReviews.map((r) => r.comment),
       ...myReviews.map((r) => groupById.get(r.groupId)?.name),
     ],

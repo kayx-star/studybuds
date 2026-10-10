@@ -58,6 +58,10 @@ export function reasonText(t: Dict, r: Reason) {
       return t.reason.otherCampus(campusLabel(t, r.campus));
     case "personalityFit":
       return t.reason.personalityFit;
+    case "sameCourse":
+      return t.reason.sameCourse(t.list(r.codes));
+    case "sameSection":
+      return t.reason.sameSection(t.list(r.indexes));
     case "rating":
       return t.reason.rating(r.avg.toFixed(1), r.count);
   }

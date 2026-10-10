@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { GeminiNotice } from "@/components/gemini-notice";
 import { JoinForm, type JoinLabels } from "@/components/join-form";
 import { getDb } from "@/db";
-import { students } from "@/db/schema";
+import { students, type Student } from "@/db/schema";
 import { localePath, type Locale } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
 import type { Dict } from "@/i18n/zh";
@@ -22,9 +22,10 @@ import {
   STYLE_TAGS,
 } from "@/lib/constants";
 import { currentStudentId } from "@/lib/session";
+import { classInfo } from "@/lib/courses";
 import { SUBJECTS, subjectLabel } from "@/lib/subjects";
 
-function labels(t: Dict, locale: Locale): JoinLabels {
+function labels(t: Dict, locale: Locale, student: Student | null): JoinLabels {
   const j = t.join;
   const o = t.options;
   return {
@@ -59,6 +60,18 @@ function labels(t: Dict, locale: Locale): JoinLabels {
     subjectNoMatch: j.subjectNoMatch,
     subjectMax: j.subjectMax,
     subjectRemove: j.subjectRemove,
+    classes: j.classes,
+    classesHint: j.classesHint,
+    classLabels: {
+      placeholder: j.classesPlaceholder,
+      noMatch: j.classesNoMatch,
+      loading: j.classesLoading,
+      max: j.classesMax,
+      remove: j.subjectRemove,
+      wholeCourse: j.wholeCourse,
+      section: j.sectionLabel("{sec}", "{idx}", "{who}").replace(" · {who}", "{who}"),
+    },
+    initialClasses: (student?.classes ?? []).map(classInfo).filter((c) => c !== null),
     days: DAYS.map((d) => ({ key: d.key, label: o.days[d.key] })),
     periods: PERIODS.map((p) => ({ key: p.key, label: o.periods[p.key] })),
     paces: PACES.map((p) => ({ key: p.key, label: o.paces[p.key] })),
@@ -88,7 +101,7 @@ async function FormWithProfile() {
   if (!sid) redirect(localePath(locale, "/login?next=/join"));
   const db = await getDb();
   const [student] = await db.select().from(students).where(eq(students.id, sid));
-  return <JoinForm student={student ?? null} l={labels(t, locale)} />;
+  return <JoinForm student={student ?? null} l={labels(t, locale, student ?? null)} />;
 }
 
 export default async function JoinPage() {
