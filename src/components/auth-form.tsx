@@ -1,27 +1,30 @@
 import Link from "next/link";
 import { login, signup } from "@/app/auth-actions";
+import { localePath } from "@/i18n/config";
+import { getI18n } from "@/i18n/server";
 import { ActionForm } from "./action-form";
 import { SubmitButton } from "./submit-button";
 
-export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: string }) {
+export async function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: string }) {
+  const { locale, t } = await getI18n();
+  const a = t.auth;
   const isLogin = mode === "login";
   const query = next ? `?next=${encodeURIComponent(next)}` : "";
   return (
     <div className="mx-auto max-w-sm space-y-6 py-6">
       <div className="text-center">
-        <h1 className="text-2xl font-semibold">{isLogin ? "登录" : "注册账号"}</h1>
-        <p className="mt-1 text-sm text-muted">
-          {isLogin ? "登录后可以在任何设备上看到你的资料和小组" : "注册后填写学习资料，开始匹配学习搭子"}
-        </p>
+        <h1 className="text-2xl font-semibold">{isLogin ? a.loginTitle : a.signupTitle}</h1>
+        <p className="mt-1 text-sm text-muted">{isLogin ? a.loginSubtitle : a.signupSubtitle}</p>
       </div>
       <ActionForm action={isLogin ? login : signup} className="card space-y-4">
         {next && <input type="hidden" name="next" value={next} />}
         <label className="block text-sm">
-          邮箱
+          {a.email}
           <input name="email" type="email" required autoComplete="email" className="input mt-1" />
         </label>
         <label className="block text-sm">
-          密码{!isLogin && <span className="text-muted">（至少 8 位）</span>}
+          {a.password}
+          {!isLogin && <span className="text-muted">{a.passwordHint}</span>}
           <input
             name="password"
             type="password"
@@ -33,18 +36,20 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next?: stri
         </label>
         {!isLogin && (
           <label className="block text-sm">
-            确认密码
+            {a.confirm}
             <input name="confirm" type="password" required autoComplete="new-password" className="input mt-1" />
           </label>
         )}
         <div className="pt-1">
-          <SubmitButton pending={isLogin ? "登录中…" : "注册中…"}>{isLogin ? "登录" : "注册"}</SubmitButton>
+          <SubmitButton pending={isLogin ? a.loggingIn : a.signingUp}>
+            {isLogin ? a.loginButton : a.signupButton}
+          </SubmitButton>
         </div>
       </ActionForm>
       <p className="text-center text-sm text-muted">
-        {isLogin ? "还没有账号？" : "已经有账号了？"}
-        <Link href={(isLogin ? "/signup" : "/login") + query} className="text-accent hover:underline">
-          {isLogin ? "注册" : "去登录"}
+        {isLogin ? a.noAccount : a.hasAccount}
+        <Link href={localePath(locale, isLogin ? "/signup" : "/login") + query} className="text-accent hover:underline">
+          {isLogin ? a.toSignup : a.toLogin}
         </Link>
       </p>
     </div>

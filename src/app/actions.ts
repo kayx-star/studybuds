@@ -5,8 +5,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb } from "@/db";
 import { getRatings } from "@/db/queries";
-import { complements, groups, students, type PlanStep, type Student } from "@/db/schema";
-import { ALL_SLOTS, GOALS, MODES, PACES, STYLE_TAGS, normalizeCourse, slotLabel } from "@/lib/constants";
+import { complements, groups, students, type Student } from "@/db/schema";
+import { localePath } from "@/i18n/config";
+import { slotList } from "@/i18n/format";
+import { getActionI18n } from "@/i18n/server";
+import type { Dict } from "@/i18n/zh";
+import { ALL_SLOTS, GOALS, MODES, PACES, STYLE_TAGS, normalizeCourse } from "@/lib/constants";
 import { analyzeBio, planGroup, rankComplements } from "@/lib/gemini";
 import { commonSlots, complementPool, greedyGroup, recommend, ruleComplements, type MatchMode } from "@/lib/match";
 import { currentStudentId } from "@/lib/session";
@@ -14,28 +18,30 @@ import { currentStudentId } from "@/lib/session";
 const keys = <T extends readonly { key: string }[]>(list: T) =>
   list.map((x) => x.key) as [T[number]["key"], ...T[number]["key"][]];
 
-const ProfileSchema = z.object({
-  name: z.string().trim().min(1, "请填写昵称").max(20, "昵称最多 20 字"),
-  contact: z.string().trim().min(1, "请填写联系方式（组队成功后仅组员可见）").max(50),
-  courses: z
-    .string()
-    .transform((s) => [...new Set(s.split(/[,，、;；\n]/).map(normalizeCourse).filter(Boolean))])
-    .pipe(z.array(z.string().max(30)).min(1, "至少填写一门课程").max(8, "最多 8 门课程")),
-  slots: z.array(z.enum(ALL_SLOTS)).min(1, "至少选择一个空闲时段"),
-  pace: z.enum(keys(PACES), { message: "请选择学习节奏" }),
-  mode: z.enum(keys(MODES), { message: "请选择学习方式" }),
-  goal: z.enum(keys(GOALS), { message: "请选择学习目标" }),
-  tags: z.array(z.enum(STYLE_TAGS)),
-  groupSize: z.coerce.number().int().min(2).max(6),
-  bio: z.string().trim().max(500, "自我介绍最多 500 字"),
-  strong: z.string().trim().max(200, "“我擅长”最多 200 字"),
-  weak: z.string().trim().max(200, "“我想补强”最多 200 字"),
-});
+const profileSchema = (e: Dict["join"]["errors"]) =>
+  z.object({
+    name: z.string().trim().min(1, e.name).max(20, e.nameLong),
+    contact: z.string().trim().min(1, e.contact).max(50),
+    courses: z
+      .string()
+      .transform((s) => [...new Set(s.split(/[,，、;；\n]/).map(normalizeCourse).filter(Boolean))])
+      .pipe(z.array(z.string().max(30)).min(1, e.courses).max(8, e.coursesMany)),
+    slots: z.array(z.enum(ALL_SLOTS)).min(1, e.slots),
+    pace: z.enum(keys(PACES), { message: e.pace }),
+    mode: z.enum(keys(MODES), { message: e.mode }),
+    goal: z.enum(keys(GOALS), { message: e.goal }),
+    tags: z.array(z.enum(STYLE_TAGS)),
+    groupSize: z.coerce.number().int().min(2).max(6),
+    bio: z.string().trim().max(500, e.bioLong),
+    strong: z.string().trim().max(200, e.strongLong),
+    weak: z.string().trim().max(200, e.weakLong),
+  });
 
 export type JoinState = { error?: string };
 
 export async function saveProfile(_prev: JoinState, formData: FormData): Promise<JoinState> {
-  const parsed = ProfileSchema.safeParse({
+  const { locale, t } = await getActionI18n();
+  const parsed = profileSchema(t.join.errors).safeParse({
     name: formData.get("name"),
     contact: formData.get("contact"),
     courses: formData.get("courses") ?? "",
@@ -53,7 +59,7 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
   const data = parsed.data;
 
   const sid = await currentStudentId();
-  if (!sid) return { error: "登录已过期，请重新登录" };
+  if (!sid) return { error: t.join.errors.sessionExpired };
   const db = await getDb();
   const [existing] = await db.select().from(students).where(eq(students.id, sid));
 
@@ -61,7 +67,7 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
   let aiSummary = existing?.aiSummary ?? null;
   let tags: string[] = data.tags;
   if (data.bio !== existing?.bio) {
-    const analysis = await analyzeBio(data.bio);
+    const analysis = await analyzeBio(data.bio, t.geminiLanguage);
     aiSummary = analysis?.summary ?? null;
     if (analysis) tags = [...new Set([...tags, ...analysis.tags])];
   }
@@ -76,30 +82,22 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
     // 资料 id 与账号 id 相同
     await db.insert(students).values({ ...data, tags, aiSummary, id: sid, createdAt: new Date() });
   }
-  redirect("/me");
-}
-
-function defaultPlan(course: string, slots: string[]): PlanStep[] {
-  const when = slots.slice(0, 2).map(slotLabel).join("、") || "大家约定的时间";
-  return [
-    { title: "固定学习时间", detail: `每周 ${when} 一起学习 ${course}，每次 1.5–2 小时。` },
-    { title: "轮流主讲", detail: "每次由一位同学负责梳理本周知识点，其他人提问补充。" },
-    { title: "练习与互查", detail: "每周各自完成习题，见面时互相讲解错题。" },
-    { title: "考前冲刺", detail: "考前两周改为每周两次，集中做往年题和模拟题。" },
-  ];
+  redirect(localePath(locale, "/me"));
 }
 
 export async function formGroup(formData: FormData) {
+  const { locale, t } = await getActionI18n();
+  const to = (path: string) => localePath(locale, path);
   const sid = await currentStudentId();
-  if (!sid) redirect("/login");
+  if (!sid) redirect(to("/login"));
   const course = String(formData.get("course") ?? "");
   const mode: MatchMode = formData.get("mode") === "complement" ? "complement" : "similar";
 
   const db = await getDb();
   const [all, ratings] = await Promise.all([db.select().from(students), getRatings()]);
   const me = all.find((s) => s.id === sid);
-  if (!me) redirect("/join");
-  if (!me.courses.includes(course)) redirect("/me");
+  if (!me) redirect(to("/join"));
+  if (!me.courses.includes(course)) redirect(to("/me"));
 
   let pool = recommend(me, all, course, ratings);
   if (mode === "complement") {
@@ -114,10 +112,10 @@ export async function formGroup(formData: FormData) {
       .sort((a, b) => b.score - a.score)
       .slice(0, 8);
   }
-  if (pool.length === 0) redirect("/me");
+  if (pool.length === 0) redirect(to("/me"));
 
   const want = me.groupSize - 1;
-  const ai = await planGroup(course, me, pool, mode, ratings);
+  const ai = await planGroup(course, me, pool, mode, ratings, t.geminiLanguage);
 
   let members: Student[] | null = null;
   if (ai) {
@@ -136,39 +134,43 @@ export async function formGroup(formData: FormData) {
     me.groupSize,
   );
 
+  // 组名、理由和计划用发起人当时的语言生成并保存
   const meetingSlots = commonSlots(members);
   const id = crypto.randomUUID();
   await db.insert(groups).values({
     id,
     course,
-    name: (byAi && ai?.groupName) || `${course} 学习小组`,
+    name: (byAi && ai?.groupName) || t.defaults.groupName(course),
     memberIds: members.map((m) => m.id),
     meetingSlots,
-    reason:
-      (byAi && ai?.reason) ||
-      `按共同空闲时间与学习风格匹配，大家都能在 ${meetingSlots.slice(0, 3).map(slotLabel).join("、")} 一起学习。`,
-    plan: byAi && ai?.plan.length ? ai.plan.slice(0, 6) : defaultPlan(course, meetingSlots),
+    reason: (byAi && ai?.reason) || t.defaults.groupReason(slotList(t, meetingSlots.slice(0, 3))),
+    plan:
+      byAi && ai?.plan.length
+        ? ai.plan.slice(0, 6)
+        : t.defaults.plan(course, slotList(t, meetingSlots.slice(0, 2)) || t.defaults.anytime),
     byAi,
     createdAt: new Date(),
   });
-  redirect(`/groups/${id}`);
+  redirect(to(`/groups/${id}`));
 }
 
 /** 互补匹配：请 Gemini 评估并缓存结果 */
 export async function findComplements(formData: FormData) {
+  const { locale, t } = await getActionI18n();
+  const to = (path: string) => localePath(locale, path);
   const sid = await currentStudentId();
-  if (!sid) redirect("/login");
+  if (!sid) redirect(to("/login"));
   const course = String(formData.get("course") ?? "");
 
   const db = await getDb();
   const all = await db.select().from(students);
   const me = all.find((s) => s.id === sid);
-  if (!me) redirect("/join");
-  if (!me.courses.includes(course)) redirect("/me?mode=complement");
+  if (!me) redirect(to("/join"));
+  if (!me.courses.includes(course)) redirect(to("/me?mode=complement"));
 
   const pool = complementPool(me, all, course);
-  const aiPicks = pool.length > 0 ? await rankComplements(course, me, pool) : null;
-  const picks = (aiPicks ?? ruleComplements(me, pool)).sort((a, b) => b.score - a.score);
+  const aiPicks = pool.length > 0 ? await rankComplements(course, me, pool, t.geminiLanguage) : null;
+  const picks = (aiPicks ?? ruleComplements(me, pool, t)).sort((a, b) => b.score - a.score);
 
   await db
     .insert(complements)
@@ -177,5 +179,5 @@ export async function findComplements(formData: FormData) {
       target: [complements.studentId, complements.course],
       set: { picks, byAi: aiPicks !== null, createdAt: new Date() },
     });
-  redirect("/me?mode=complement");
+  redirect(to("/me?mode=complement"));
 }

@@ -8,11 +8,13 @@ import { Sessions } from "@/components/group/sessions";
 import { getDb } from "@/db";
 import { getRatings } from "@/db/queries";
 import { groups, students } from "@/db/schema";
-import { GOALS, PACES, labelOf, slotLabel } from "@/lib/constants";
+import { localePath } from "@/i18n/config";
+import { slotList } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
 import { currentStudentId } from "@/lib/session";
 
 async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const [{ id }, { locale, t }] = await Promise.all([params, getI18n()]);
   const db = await getDb();
   const [group] = await db.select().from(groups).where(eq(groups.id, id));
   if (!group) notFound();
@@ -28,19 +30,17 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/me" className="text-sm text-muted hover:text-fg">← 返回</Link>
+        <Link href={localePath(locale, "/me")} className="text-sm text-muted hover:text-fg">{t.common.back}</Link>
         <div className="mt-3 text-sm text-muted">{group.course}</div>
         <h1 className="text-2xl font-semibold">{group.name}</h1>
         <p className="mt-2 text-muted">{group.reason}</p>
-        {group.byAi && <span className="chip mt-3">✨ 由 Gemini 组队并制定计划</span>}
+        {group.byAi && <span className="chip mt-3">{t.group.byAi}</span>}
       </div>
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-baseline gap-x-3">
-          <h2 className="font-semibold">成员（{members.length}）</h2>
-          <span className="text-sm text-muted">
-            共同空闲：{group.meetingSlots.map(slotLabel).join("、")}
-          </span>
+          <h2 className="font-semibold">{t.group.members(members.length)}</h2>
+          <span className="text-sm text-muted">{t.group.commonFree(slotList(t, group.meetingSlots))}</span>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           {members.map((m) => {
@@ -49,14 +49,14 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
               <div key={m.id} className="card space-y-1 !p-4">
                 <div className="font-medium">
                   {m.name}
-                  {m.id === sid && <span className="ml-1 text-xs text-muted">（我）</span>}
+                  {m.id === sid && <span className="ml-1 text-xs text-muted">{t.common.me}</span>}
                   {r && <span className="ml-2 text-xs text-amber-600">★ {r.avg.toFixed(1)}</span>}
                 </div>
                 <div className="text-xs text-muted">
-                  {labelOf(PACES, m.pace)} · {labelOf(GOALS, m.goal)}
+                  {t.options.paces[m.pace]} · {t.options.goals[m.goal]}
                 </div>
                 {m.strong && <div className="text-xs">💪 {m.strong}</div>}
-                <div className="text-xs">{isMember ? `📮 ${m.contact}` : "联系方式仅组员可见"}</div>
+                <div className="text-xs">{isMember ? `📮 ${m.contact}` : t.group.contactHidden}</div>
               </div>
             );
           })}
@@ -67,7 +67,7 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
       <Quizzes group={group} members={members} meId={sid} />
 
       <section className="card space-y-4">
-        <h2 className="font-semibold">📋 学习计划</h2>
+        <h2 className="font-semibold">{t.group.plan}</h2>
         <ol className="space-y-3">
           {group.plan.map((step, i) => (
             <li key={i} className="flex gap-3">
@@ -86,9 +86,10 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
   );
 }
 
-export default function GroupPage({ params }: PageProps<"/groups/[id]">) {
+export default async function GroupPage({ params }: PageProps<"/[lang]/groups/[id]">) {
+  const { t } = await getI18n();
   return (
-    <Suspense fallback={<p className="text-muted">加载中…</p>}>
+    <Suspense fallback={<p className="text-muted">{t.common.loading}</p>}>
       <GroupDetail params={params} />
     </Suspense>
   );

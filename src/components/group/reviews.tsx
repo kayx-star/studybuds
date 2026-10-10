@@ -4,12 +4,9 @@ import { ActionForm } from "@/components/action-form";
 import { SubmitButton } from "@/components/submit-button";
 import { getDb } from "@/db";
 import { reviews, type Group, type Student } from "@/db/schema";
+import { getI18n } from "@/i18n/server";
 
-const ASPECTS = [
-  { key: "reliability", label: "守时靠谱" },
-  { key: "contribution", label: "学习贡献" },
-  { key: "communication", label: "沟通友好" },
-] as const;
+const ASPECTS = ["reliability", "contribution", "communication"] as const;
 
 function StarInput({ name, value }: { name: string; value?: number }) {
   // 5 个单选按钮，倒序渲染再 flex-row-reverse 显示，选中项和排在它后面（视觉上在左侧）的星星点亮
@@ -29,6 +26,8 @@ function StarInput({ name, value }: { name: string; value?: number }) {
 
 export async function Reviews({ group, members, meId }: { group: Group; members: Student[]; meId: string | null }) {
   if (meId === null || !group.memberIds.includes(meId)) return null;
+  const { t } = await getI18n();
+  const r = t.reviews;
   const db = await getDb();
   const [given, received] = await Promise.all([
     db.select().from(reviews).where(and(eq(reviews.groupId, group.id), eq(reviews.reviewerId, meId))),
@@ -39,31 +38,29 @@ export async function Reviews({ group, members, meId }: { group: Group; members:
   return (
     <section className="card space-y-4">
       <div>
-        <h2 className="font-semibold">⭐ 搭子互评</h2>
-        <p className="text-xs text-muted">
-          评分会汇总显示在大家的匹配卡片上，帮助以后匹配到更靠谱的搭子；评语匿名，只有被评价的人能看到。
-        </p>
+        <h2 className="font-semibold">{r.title}</h2>
+        <p className="text-xs text-muted">{r.hint}</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         {others.map((m) => {
-          const mine = given.find((r) => r.revieweeId === m.id);
+          const mine = given.find((x) => x.revieweeId === m.id);
           return (
             <ActionForm key={m.id} action={saveReview} className="rounded-xl border border-line p-3 space-y-2">
               <input type="hidden" name="groupId" value={group.id} />
               <input type="hidden" name="revieweeId" value={m.id} />
               <div className="font-medium">
-                {m.name} {mine && <span className="chip ml-1">已评价</span>}
+                {m.name} {mine && <span className="chip ml-1">{r.reviewed}</span>}
               </div>
               {ASPECTS.map((a) => (
-                <div key={a.key} className="flex items-center justify-between text-sm">
-                  <span className="text-muted">{a.label}</span>
-                  <StarInput name={a.key} value={mine?.[a.key]} />
+                <div key={a} className="flex items-center justify-between text-sm">
+                  <span className="text-muted">{r[a]}</span>
+                  <StarInput name={a} value={mine?.[a]} />
                 </div>
               ))}
-              <input name="comment" defaultValue={mine?.comment} className="input" placeholder="匿名评语（可选）" />
-              <SubmitButton pending="保存中…" variant={mine ? "ghost" : "primary"}>
-                {mine ? "更新评价" : "提交评价"}
+              <input name="comment" defaultValue={mine?.comment} className="input" placeholder={r.commentPlaceholder} />
+              <SubmitButton pending={r.saving} variant={mine ? "ghost" : "primary"}>
+                {mine ? r.update : r.submit}
               </SubmitButton>
             </ActionForm>
           );
@@ -72,19 +69,19 @@ export async function Reviews({ group, members, meId }: { group: Group; members:
 
       {received.length > 0 && (
         <div className="rounded-xl bg-accent-soft/60 p-3 text-sm">
-          <div className="mb-1 text-xs text-muted">组员给你的匿名评价（{received.length} 条）</div>
+          <div className="mb-1 text-xs text-muted">{r.received(received.length)}</div>
           <div className="flex flex-wrap gap-4">
             {ASPECTS.map((a) => (
-              <span key={a.key}>
-                {a.label} <b>{(received.reduce((s, r) => s + r[a.key], 0) / received.length).toFixed(1)}</b>★
+              <span key={a}>
+                {r[a]} <b>{(received.reduce((s, x) => s + x[a], 0) / received.length).toFixed(1)}</b>★
               </span>
             ))}
           </div>
           <ul className="mt-2 space-y-1">
             {received
-              .filter((r) => r.comment)
-              .map((r, i) => (
-                <li key={i} className="text-muted">“{r.comment}”</li>
+              .filter((x) => x.comment)
+              .map((x, i) => (
+                <li key={i} className="text-muted">“{x.comment}”</li>
               ))}
           </ul>
         </div>

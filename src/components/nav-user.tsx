@@ -3,15 +3,18 @@ import Link from "next/link";
 import { logout } from "@/app/auth-actions";
 import { getDb } from "@/db";
 import { users } from "@/db/schema";
+import { localePath } from "@/i18n/config";
+import { getI18n } from "@/i18n/server";
 import { currentStudentId } from "@/lib/session";
 
 export async function NavUser() {
-  const uid = await currentStudentId();
+  const [{ locale, t }, uid] = await Promise.all([getI18n(), currentStudentId()]);
+  const to = (path: string) => localePath(locale, path);
   if (!uid) {
     return (
       <>
-        <Link href="/login" className="hover:text-fg">登录</Link>
-        <Link href="/signup" className="btn !py-1.5">注册</Link>
+        <Link href={to("/login")} className="hover:text-fg">{t.nav.login}</Link>
+        <Link href={to("/signup")} className="btn !py-1.5">{t.nav.signup}</Link>
       </>
     );
   }
@@ -19,11 +22,11 @@ export async function NavUser() {
   const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, uid));
   return (
     <>
-      <Link href="/join" className="hover:text-fg">我的资料</Link>
-      <Link href="/me" className="hover:text-fg">匹配与小组</Link>
-      <span className="hidden text-xs sm:inline">{user?.email}</span>
+      <Link href={to("/join")} className="hover:text-fg">{t.nav.profile}</Link>
+      <Link href={to("/me")} className="hover:text-fg">{t.nav.matches}</Link>
+      <span className="hidden text-xs md:inline">{user?.email}</span>
       <form action={logout}>
-        <button className="hover:text-fg">退出</button>
+        <button className="hover:text-fg">{t.nav.logout}</button>
       </form>
     </>
   );

@@ -20,6 +20,7 @@ npm run dev                  # 打开 http://localhost:3000
 组队时把前 8 名候选交给 Gemini 挑选组员（`src/lib/gemini.ts`），并校验所有人仍有共同时间，否则回退到贪心算法。
 
 ## 功能
+- **多语言**：中文 / English / Español。网址带语言前缀（`/zh/me`、`/en/me`、`/es/me`），`src/proxy.ts` 按 cookie 或浏览器语言自动跳转；字典在 `src/i18n/`（`zh.ts` 定义结构，`en.ts`、`es.ts` 由类型检查保证键齐全）；Gemini 按当前语言输出
 - **登录**：邮箱 + 密码（scrypt 加盐哈希），会话令牌只存 SHA-256，30 天有效；同一邮箱连续输错 5 次锁 15 分钟（内存版，多实例部署需改存数据库）
 - **相似匹配 / 互补匹配**：互补模式由 Gemini 分析“你擅长 TA 的弱项、TA 擅长你的弱项”，结果缓存在 `complements` 表
 - **约自习**：按共同空闲时间推荐日期，组员报名，可导出 .ics 到日历

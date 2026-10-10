@@ -1,14 +1,25 @@
 import type { ComplementPick, Student } from "@/db/schema";
-import { PACES, slotLabel } from "./constants";
+import type { Dict } from "@/i18n/zh";
+import { PACES } from "./constants";
 import type { Rating } from "./ratings";
 
 export type MatchMode = "similar" | "complement";
+
+/** 推荐理由存成结构化数据，显示时再按语言渲染（见 i18n/format.ts 的 reasonText） */
+export type Reason =
+  | { kind: "slots"; slots: string[] }
+  | { kind: "noSlots" }
+  | { kind: "samePace" }
+  | { kind: "sameGoal" }
+  | { kind: "sharedTags"; tags: string[] }
+  | { kind: "modeConflict" }
+  | { kind: "rating"; avg: number; count: number };
 
 export type PairMatch = {
   student: Student;
   score: number; // 0-100
   sharedSlots: string[];
-  reasons: string[];
+  reasons: Reason[];
 };
 
 const intersect = (a: string[], b: string[]) => a.filter((x) => b.includes(x));
@@ -36,17 +47,12 @@ export function pairScore(a: Student, b: Student): Omit<PairMatch, "student"> {
     0.4 * time + 0.15 * pace + 0.15 * (modeOk ? 1 : 0) + 0.1 * goal + 0.15 * tags + 0.05 * size;
   if (sharedSlots.length === 0) score *= 0.3;
 
-  const reasons: string[] = [];
-  if (sharedSlots.length > 0) {
-    const shown = sharedSlots.slice(0, 3).map(slotLabel).join("、");
-    reasons.push(`${sharedSlots.length} 个共同空闲时段（${shown}${sharedSlots.length > 3 ? "等" : ""}）`);
-  } else {
-    reasons.push("暂无共同空闲时间");
-  }
-  if (pace === 1) reasons.push("学习节奏一致");
-  if (a.goal === b.goal) reasons.push("学习目标相同");
-  if (sharedTags.length > 0) reasons.push(`都喜欢${sharedTags.join("、")}`);
-  if (!modeOk) reasons.push("线上/线下偏好不同");
+  const reasons: Reason[] = [];
+  reasons.push(sharedSlots.length > 0 ? { kind: "slots", slots: sharedSlots } : { kind: "noSlots" });
+  if (pace === 1) reasons.push({ kind: "samePace" });
+  if (a.goal === b.goal) reasons.push({ kind: "sameGoal" });
+  if (sharedTags.length > 0) reasons.push({ kind: "sharedTags", tags: sharedTags });
+  if (!modeOk) reasons.push({ kind: "modeConflict" });
 
   return { score: Math.round(score * 100), sharedSlots, reasons };
 }
@@ -55,7 +61,7 @@ export function pairScore(a: Student, b: Student): Omit<PairMatch, "student"> {
 function withRating(m: PairMatch, rating?: Rating): PairMatch {
   if (!rating) return m;
   const score = Math.max(0, Math.min(100, Math.round(m.score + (rating.avg - 3) * 3)));
-  return { ...m, score, reasons: [...m.reasons, `搭子评分 ${rating.avg.toFixed(1)}★（${rating.count} 条）`] };
+  return { ...m, score, reasons: [...m.reasons, { kind: "rating", avg: rating.avg, count: rating.count }] };
 }
 
 /** 为某门课推荐搭子，按匹配度排序 */
@@ -91,7 +97,7 @@ const terms = (text: string) =>
     .filter((t) => t.length >= 2);
 
 /** 规则版互补匹配（Gemini 不可用时）：看我的弱项是否出现在对方擅长里，反之亦然 */
-export function ruleComplements(me: Student, pool: Student[]): ComplementPick[] {
+export function ruleComplements(me: Student, pool: Student[], t: Dict): ComplementPick[] {
   const hits = (wants: string, has: string) => {
     const hay = has.toUpperCase();
     return terms(wants).filter((t) => hay.includes(t));
@@ -101,10 +107,10 @@ export function ruleComplements(me: Student, pool: Student[]): ComplementPick[] 
     const iHelpThem = hits(s.weak, me.strong);
     const score = Math.min(100, theyHelpMe.length * 30 + iHelpThem.length * 30 + (theyHelpMe.length && iHelpThem.length ? 20 : 0));
     const parts = [
-      theyHelpMe.length ? `TA 擅长你想补强的${theyHelpMe.join("、")}` : null,
-      iHelpThem.length ? `你可以帮 TA 补${iHelpThem.join("、")}` : null,
+      theyHelpMe.length ? t.reason.theyHelpYou(t.list(theyHelpMe)) : null,
+      iHelpThem.length ? t.reason.youHelpThem(t.list(iHelpThem)) : null,
     ].filter(Boolean);
-    return { id: s.id, score, reason: parts.join("；") || "暂未发现明显互补（双方填写擅长/薄弱后更准确）" };
+    return { id: s.id, score, reason: parts.join("; ") || t.reason.noComplement };
   });
 }
 

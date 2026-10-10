@@ -7,12 +7,17 @@ import { SubmitButton } from "@/components/submit-button";
 import { getDb } from "@/db";
 import { requireMember } from "@/db/queries";
 import { quizAttempts, quizzes, students } from "@/db/schema";
-import { DIFFICULTIES, labelOf } from "@/lib/constants";
+import { localePath } from "@/i18n/config";
+import { getI18n } from "@/i18n/server";
+import type { DIFFICULTIES } from "@/lib/constants";
+
+type DiffKey = (typeof DIFFICULTIES)[number]["key"];
 
 const LETTERS = ["A", "B", "C", "D"];
 
 async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const [{ id }, { locale, t }] = await Promise.all([params, getI18n()]);
+  const tq = t.quiz;
   const db = await getDb();
   const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, id));
   if (!quiz) notFound();
@@ -25,14 +30,16 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
     (await db.select().from(students).where(inArray(students.id, ctx.group.memberIds))).map((s) => [s.id, s.name]),
   );
   const total = quiz.questions.length;
+  const author = names.get(quiz.createdBy) ?? t.common.member;
+  const difficulty = t.options.difficulties[quiz.difficulty as DiffKey] ?? quiz.difficulty;
 
   return (
     <div className="space-y-6">
       <div>
-        <Link href={`/groups/${quiz.groupId}`} className="text-sm text-muted hover:text-fg">← 返回 {ctx.group.name}</Link>
-        <div className="mt-3 text-sm text-muted">
-          {ctx.group.course} · {labelOf(DIFFICULTIES, quiz.difficulty)} · {total} 题 · {names.get(quiz.createdBy) ?? "组员"} 出题
-        </div>
+        <Link href={localePath(locale, `/groups/${quiz.groupId}`)} className="text-sm text-muted hover:text-fg">
+          {tq.backTo(ctx.group.name)}
+        </Link>
+        <div className="mt-3 text-sm text-muted">{tq.header(ctx.group.course, difficulty, total, author)}</div>
         <h1 className="text-2xl font-semibold">{quiz.topic}</h1>
       </div>
 
@@ -40,7 +47,7 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
         <>
           <section className="card flex flex-wrap items-center gap-6">
             <div>
-              <div className="text-sm text-muted">我的成绩</div>
+              <div className="text-sm text-muted">{tq.myScore}</div>
               <div className="text-3xl font-bold text-accent">
                 {mine.score}<span className="text-lg text-muted">/{total}</span>
               </div>
@@ -51,8 +58,8 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
                 .map((a, i) => (
                   <li key={a.studentId} className="flex justify-between">
                     <span>
-                      {["🥇", "🥈", "🥉"][i] ?? `${i + 1}.`} {names.get(a.studentId) ?? "组员"}
-                      {a.studentId === ctx.me.id && <span className="text-xs text-muted">（我）</span>}
+                      {["🥇", "🥈", "🥉"][i] ?? `${i + 1}.`} {names.get(a.studentId) ?? t.common.member}
+                      {a.studentId === ctx.me.id && <span className="text-xs text-muted">{t.common.me}</span>}
                     </span>
                     <span className="text-muted">{a.score}/{total}</span>
                   </li>
@@ -62,7 +69,7 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
                 .map((mid) => (
                   <li key={mid} className="flex justify-between text-muted">
                     <span>⏳ {names.get(mid)}</span>
-                    <span>未作答</span>
+                    <span>{tq.notAnswered}</span>
                   </li>
                 ))}
             </ol>
@@ -90,7 +97,7 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
                         }`}
                       >
                         {LETTERS[j]}. {opt}
-                        {j === picked && <span className="ml-2 text-xs text-muted">（你的选择）</span>}
+                        {j === picked && <span className="ml-2 text-xs text-muted">{tq.yourChoice}</span>}
                       </li>
                     ))}
                   </ul>
@@ -104,12 +111,10 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
         <form action={submitQuiz} className="space-y-4">
           <input type="hidden" name="quizId" value={quiz.id} />
           <input type="hidden" name="groupId" value={quiz.groupId} />
-          <p className="text-sm text-muted">
-            每人只有一次作答机会，交卷后可以看到答案解析和组内排名。已有 {attempts.length} 人交卷。
-          </p>
+          <p className="text-sm text-muted">{tq.rules(attempts.length)}</p>
           {quiz.questions.map((q, i) => (
             <fieldset key={i} className="card space-y-2">
-              <legend className="sr-only">第 {i + 1} 题</legend>
+              <legend className="sr-only">{tq.question(i + 1)}</legend>
               <div className="font-medium">
                 {i + 1}. {q.question}
               </div>
@@ -123,16 +128,17 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
               ))}
             </fieldset>
           ))}
-          <SubmitButton pending="交卷中…">交卷</SubmitButton>
+          <SubmitButton pending={tq.submitting}>{tq.submit}</SubmitButton>
         </form>
       )}
     </div>
   );
 }
 
-export default function QuizPage({ params }: PageProps<"/quizzes/[id]">) {
+export default async function QuizPage({ params }: PageProps<"/[lang]/quizzes/[id]">) {
+  const { t } = await getI18n();
   return (
-    <Suspense fallback={<p className="text-muted">加载中…</p>}>
+    <Suspense fallback={<p className="text-muted">{t.common.loading}</p>}>
       <QuizDetail params={params} />
     </Suspense>
   );
