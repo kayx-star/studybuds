@@ -460,6 +460,7 @@ Código del grupo exportado desde Compañeros de Estudio.
     sending: "Enviando…",
     back: "← Todos los mensajes",
     noMessages: (name) => `¡Saluda a ${name}!`,
+    emoji: "Emojis",
     translate: "Traducir",
     showOriginal: "Ver original",
     translating: "Traduciendo…",

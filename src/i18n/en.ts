@@ -459,6 +459,7 @@ Group code exported from Study Buddy.
     sending: "Sending…",
     back: "← All messages",
     noMessages: (name) => `Say hi to ${name}!`,
+    emoji: "Emoji",
     translate: "Translate",
     showOriginal: "Show original",
     translating: "Translating…",

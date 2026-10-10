@@ -46,6 +46,7 @@ async function Thread({ params }: { params: Promise<{ userId: string }> }) {
           translating: c.translating,
           empty: c.noMessages(name),
           htmlLang: HTML_LANG[locale],
+          emoji: c.emoji,
         }}
       />
     </div>

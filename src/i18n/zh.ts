@@ -456,6 +456,7 @@ export const zh = {
     sending: "发送中…",
     back: "← 全部私信",
     noMessages: (name: string) => `和 ${name} 打个招呼吧！`,
+    emoji: "表情",
     translate: "翻译",
     showOriginal: "显示原文",
     translating: "翻译中…",

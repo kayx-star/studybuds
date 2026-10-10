@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { sendMessage, translateMessage, type ChatMessage } from "@/app/chat-actions";
+import { EmojiPicker } from "./emoji-picker";
 
 export type ChatLabels = {
   placeholder: string;
@@ -12,7 +13,14 @@ export type ChatLabels = {
   translating: string;
   empty: string;
   htmlLang: string;
+  emoji: string;
 };
+
+/** 只有 1–3 个表情、没有文字的消息显示成大表情（像微信） */
+function isEmojiOnly(text: string) {
+  const parts = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text.trim())].map((s) => s.segment);
+  return parts.length > 0 && parts.length <= 3 && parts.every((p) => /\p{Extended_Pictographic}/u.test(p));
+}
 
 const POLL_MS = 3000;
 
@@ -35,6 +43,21 @@ export function ChatThread({
   const [translated, setTranslated] = useState<Record<string, string | "loading">>({});
   const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
   const bottom = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+
+  // 把表情插到光标位置，并把光标移到表情后面
+  const insertEmoji = (emoji: string) => {
+    const el = input.current;
+    const start = el?.selectionStart ?? draft.length;
+    const end = el?.selectionEnd ?? draft.length;
+    const next = draft.slice(0, start) + emoji + draft.slice(end);
+    if (next.length > 2000) return;
+    setDraft(next);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(start + emoji.length, start + emoji.length);
+    });
+  };
   const lastAt = useRef(initial.at(-1)?.at ?? 0);
 
   // 合并新消息（按 id 去重），并记录最新时间
@@ -103,18 +126,24 @@ export function ChatThread({
         {list.map((m) => {
           const tr = translated[m.id];
           const showTr = typeof tr === "string" && tr !== "loading" && !showOriginal[m.id];
+          const big = isEmojiOnly(m.body);
           return (
             <div key={m.id} className={`flex flex-col ${m.mine ? "items-end" : "items-start"}`}>
               <div
-                className={`max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm ${
-                  m.mine ? "bg-accent text-white" : "bg-accent-soft"
-                }`}
+                className={
+                  big
+                    ? "text-5xl leading-tight"
+                    : `max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm ${
+                        m.mine ? "bg-accent text-white" : "bg-accent-soft"
+                      }`
+                }
               >
                 {showTr ? tr : m.body}
               </div>
               <div className="mt-0.5 flex gap-2 text-[11px] text-muted">
                 <span>{time(m.at)}</span>
                 {!m.mine &&
+                  !big &&
                   (tr === "loading" ? (
                     <span>{l.translating}</span>
                   ) : typeof tr === "string" ? (
@@ -135,7 +164,9 @@ export function ChatThread({
 
       {error && <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-600">{error}</p>}
       <div className="flex items-end gap-2">
+        <EmojiPicker onPick={insertEmoji} label={l.emoji} />
         <textarea
+          ref={input}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
