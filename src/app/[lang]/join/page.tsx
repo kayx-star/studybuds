@@ -7,7 +7,19 @@ import { students } from "@/db/schema";
 import { localePath } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
 import type { Dict } from "@/i18n/zh";
-import { DAYS, GOALS, MODES, PACES, PERIODS, STYLE_TAGS } from "@/lib/constants";
+import {
+  CAMPUSES,
+  DAYS,
+  GENDERS,
+  GENDER_PREFS,
+  GOALS,
+  MODES,
+  PACES,
+  PERIODS,
+  PERSONALITIES,
+  PERSONALITY_PREFS,
+  STYLE_TAGS,
+} from "@/lib/constants";
 import { currentStudentId } from "@/lib/session";
 
 function labels(t: Dict): JoinLabels {
@@ -37,7 +49,7 @@ function labels(t: Dict): JoinLabels {
     save: j.save,
     create: j.create,
     saving: j.saving,
-    coursesSeparator: t.list(["", ""]),
+    coursesSeparator: t.list(["", ""]), // 即该语言的列表分隔符：“、”或“, ”
     days: DAYS.map((d) => ({ key: d.key, label: o.days[d.key] })),
     periods: PERIODS.map((p) => ({ key: p.key, label: o.periods[p.key] })),
     paces: PACES.map((p) => ({ key: p.key, label: o.paces[p.key] })),
@@ -45,6 +57,20 @@ function labels(t: Dict): JoinLabels {
     goals: GOALS.map((g) => ({ key: g.key, label: o.goals[g.key] })),
     styleTags: STYLE_TAGS.map((tag) => ({ key: tag, label: o.tags[tag] ?? tag })),
     groupSizes: [2, 3, 4, 5, 6].map((n) => ({ key: String(n), label: j.people(n) })),
+    preferences: j.preferences,
+    gender: j.gender,
+    genderPref: j.genderPref,
+    genderHint: j.genderHint,
+    campus: j.campus,
+    campusPref: j.campusPref,
+    campusNone: j.campusNone,
+    personality: j.personality,
+    personalityPref: j.personalityPref,
+    genders: GENDERS.map((g) => ({ key: g.key, label: o.genders[g.key] })),
+    genderPrefs: GENDER_PREFS.map((g) => ({ key: g.key, label: o.genderPrefs[g.key] })),
+    campuses: CAMPUSES.map((c) => ({ key: c.key, label: o.campuses[c.key] })),
+    personalities: PERSONALITIES.map((x) => ({ key: x.key, label: o.personalities[x.key] })),
+    personalityPrefs: PERSONALITY_PREFS.map((x) => ({ key: x.key, label: o.personalityPrefs[x.key] })),
   };
 }
 

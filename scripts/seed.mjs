@@ -21,6 +21,9 @@ const TOPICS = {
   "线性代数": ["矩阵", "行列式", "特征值", "向量空间"],
   "数据结构": ["链表", "树", "图", "排序", "动态规划"],
 };
+const GENDERS = ["male", "female", "female", "male", "nonbinary", "undisclosed"];
+const CAMPUSES = ["busch", "livingston", "college-ave", "cook-douglass"];
+const PERSONALITIES = ["introvert", "ambivert", "extrovert"];
 const pick = (arr, n) => [...arr].sort(() => Math.random() - 0.5).slice(0, n);
 const one = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
@@ -46,11 +49,15 @@ for (const [i, name] of NAMES.entries()) {
     args: [id, `demo-${i}@example.com`, hashPassword(DEMO_PASSWORD), Math.floor(Date.now() / 1000)],
   });
   await client.execute({
-    sql: `INSERT INTO students (id, name, contact, courses, slots, pace, mode, goal, tags, group_size, bio, strong, weak, ai_summary, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, NULL, ?)`,
+    sql: `INSERT INTO students (id, name, contact, courses, slots, pace, mode, goal, tags, group_size, bio, strong, weak,
+            gender, gender_pref, campus, campus_pref, personality, personality_pref, ai_summary, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
     args: [id, name, `demo-${i}@example.com`, JSON.stringify(courses), JSON.stringify(slots),
       one(["slow", "medium", "fast"]), one(["online", "offline", "either"]), one(["pass", "good", "deep"]),
-      JSON.stringify(pick(TAGS, rand(1, 3))), rand(2, 4), topics.slice(0, 2).join("、"), topics.slice(2).join("、"), Math.floor(Date.now() / 1000)],
+      JSON.stringify(pick(TAGS, rand(1, 3))), rand(2, 4), topics.slice(0, 2).join("、"), topics.slice(2).join("、"),
+      one(GENDERS), Math.random() < 0.8 ? "any" : one(["male", "female"]), one(CAMPUSES),
+      JSON.stringify(Math.random() < 0.6 ? [] : pick(CAMPUSES, rand(1, 2))), one(PERSONALITIES),
+      one(["any", "any", "introvert", "extrovert"]), Math.floor(Date.now() / 1000)],
   });
 }
 console.log(`已生成 ${NAMES.length} 位示例同学，课程：${COURSES.join("、")}`);

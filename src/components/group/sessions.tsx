@@ -7,6 +7,7 @@ import { localePath } from "@/i18n/config";
 import { formatDay, formatSession, slotLabel } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
 import { nextOccurrences, ymd } from "@/lib/schedule";
+import { getTranslator } from "@/lib/translate";
 import { SessionForm } from "./session-form";
 
 export async function Sessions({ group, members, meId }: { group: Group; members: Student[]; meId: string | null }) {
@@ -25,6 +26,10 @@ export async function Sessions({ group, members, meId }: { group: Group; members
   const past = all.filter((x) => x.date < today).slice(0, 5);
   const nameOf = (id: string) => members.find((m) => m.id === id)?.name ?? t.common.left;
   const isMember = meId !== null && group.memberIds.includes(meId);
+  const tr = await getTranslator(
+    [...upcoming, ...past].flatMap((x) => [x.place, x.topic]),
+    locale,
+  );
 
   const suggestions = nextOccurrences(group.meetingSlots, now).map((o) => ({
     date: o.date,
@@ -52,9 +57,9 @@ export async function Sessions({ group, members, meId }: { group: Group; members
                       {/^https?:\/\//.test(x.place) ? (
                         <a href={x.place} target="_blank" rel="noreferrer" className="text-accent underline">{x.place}</a>
                       ) : (
-                        x.place
+                        tr(x.place)
                       )}
-                      {x.topic && ` · ${x.topic}`}
+                      {x.topic && ` · ${tr(x.topic)}`}
                     </div>
                     <div className="mt-1 text-xs text-muted">
                       {s.createdBy(nameOf(x.createdBy), x.attendees.length, group.memberIds.length, t.list(x.attendees.map(nameOf)))}

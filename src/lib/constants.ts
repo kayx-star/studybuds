@@ -58,9 +58,48 @@ export const DIFFICULTIES = [
   { key: "hard", label: "挑战" },
 ] as const;
 
+// 以下 label 只用于给 Gemini 的提示词；界面文字在 i18n 字典里
+export const GENDERS = [
+  { key: "male", label: "男" },
+  { key: "female", label: "女" },
+  { key: "nonbinary", label: "非二元" },
+  { key: "undisclosed", label: "不愿透露" },
+] as const;
+
+export const GENDER_PREFS = [
+  { key: "any", label: "都可以" },
+  { key: "male", label: "男生" },
+  { key: "female", label: "女生" },
+  { key: "nonbinary", label: "非二元" },
+] as const;
+
+export const CAMPUSES = [
+  { key: "busch", label: "Busch" },
+  { key: "livingston", label: "Livingston" },
+  { key: "college-ave", label: "College Avenue" },
+  { key: "cook-douglass", label: "Cook/Douglass" },
+] as const;
+
+export const PERSONALITIES = [
+  { key: "introvert", label: "偏内向" },
+  { key: "ambivert", label: "介于之间" },
+  { key: "extrovert", label: "偏外向" },
+] as const;
+
+export const PERSONALITY_PREFS = [
+  { key: "any", label: "都可以" },
+  { key: "introvert", label: "内向" },
+  { key: "extrovert", label: "外向" },
+] as const;
+
 export type Pace = (typeof PACES)[number]["key"];
 export type Mode = (typeof MODES)[number]["key"];
 export type Goal = (typeof GOALS)[number]["key"];
+export type Gender = (typeof GENDERS)[number]["key"];
+export type GenderPref = (typeof GENDER_PREFS)[number]["key"];
+export type Campus = (typeof CAMPUSES)[number]["key"];
+export type Personality = (typeof PERSONALITIES)[number]["key"];
+export type PersonalityPref = (typeof PERSONALITY_PREFS)[number]["key"];
 
 export const labelOf = (list: readonly { key: string; label: string }[], key: string) =>
   list.find((x) => x.key === key)?.label ?? key;

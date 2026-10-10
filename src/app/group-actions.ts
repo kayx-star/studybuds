@@ -3,6 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { requireMember } from "@/db/queries";
 import { quizAttempts, quizzes, reviews, studySessions } from "@/db/schema";
@@ -11,6 +12,7 @@ import { getActionI18n } from "@/i18n/server";
 import type { Dict } from "@/i18n/zh";
 import { DIFFICULTIES } from "@/lib/constants";
 import { generateQuiz } from "@/lib/gemini";
+import { ensureTranslations } from "@/lib/translate";
 
 export type FormState = { error?: string; ok?: string };
 
@@ -46,6 +48,7 @@ export async function createSession(_prev: FormState, formData: FormData): Promi
     attendees: [ctx.me.id],
     createdAt: new Date(),
   });
+  after(() => ensureTranslations([parsed.data.place, parsed.data.topic]));
   refresh();
   return { ok: t.sessions.created };
 }
@@ -111,6 +114,12 @@ export async function createQuiz(_prev: FormState, formData: FormData): Promise<
     createdBy: ctx.me.id,
     createdAt: new Date(),
   });
+  after(() =>
+    ensureTranslations([
+      topic,
+      ...questions.flatMap((q) => [q.question, q.explanation, q.concept, ...q.options, ...(q.optionNotes ?? [])]),
+    ]),
+  );
   redirect(localePath(locale, `/quizzes/${id}`));
 }
 

@@ -1,19 +1,43 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import { refresh } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb } from "@/db";
-import { getRatings } from "@/db/queries";
-import { complements, groups, students, type Student } from "@/db/schema";
+import { getRatings, requireMember } from "@/db/queries";
+import { complements, groups, invites, students, type PlanStep, type Student } from "@/db/schema";
 import { localePath } from "@/i18n/config";
 import { slotList } from "@/i18n/format";
 import { getActionI18n } from "@/i18n/server";
 import type { Dict } from "@/i18n/zh";
-import { ALL_SLOTS, GOALS, MODES, PACES, STYLE_TAGS, normalizeCourse } from "@/lib/constants";
+import {
+  ALL_SLOTS,
+  CAMPUSES,
+  GENDERS,
+  GENDER_PREFS,
+  GOALS,
+  MODES,
+  PACES,
+  PERSONALITIES,
+  PERSONALITY_PREFS,
+  STYLE_TAGS,
+  normalizeCourse,
+} from "@/lib/constants";
 import { analyzeBio, planGroup, rankComplements } from "@/lib/gemini";
-import { commonSlots, complementPool, greedyGroup, recommend, ruleComplements, type MatchMode } from "@/lib/match";
+import type { FormState } from "@/app/group-actions";
+import {
+  commonSlots,
+  compatible,
+  complementPool,
+  greedyGroup,
+  recommend,
+  ruleComplements,
+  type MatchMode,
+} from "@/lib/match";
 import { currentStudentId } from "@/lib/session";
+import { ensureTranslations, getTranslator } from "@/lib/translate";
 
 const keys = <T extends readonly { key: string }[]>(list: T) =>
   list.map((x) => x.key) as [T[number]["key"], ...T[number]["key"][]];
@@ -35,6 +59,12 @@ const profileSchema = (e: Dict["join"]["errors"]) =>
     bio: z.string().trim().max(500, e.bioLong),
     strong: z.string().trim().max(200, e.strongLong),
     weak: z.string().trim().max(200, e.weakLong),
+    gender: z.enum(keys(GENDERS), { message: e.gender }),
+    genderPref: z.enum(keys(GENDER_PREFS)).catch("any"),
+    campus: z.enum(keys(CAMPUSES)).or(z.literal("")).catch(""),
+    campusPref: z.array(z.enum(keys(CAMPUSES))),
+    personality: z.enum(keys(PERSONALITIES)).or(z.literal("")).catch(""),
+    personalityPref: z.enum(keys(PERSONALITY_PREFS)).catch("any"),
   });
 
 export type JoinState = { error?: string };
@@ -54,6 +84,12 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
     bio: formData.get("bio") ?? "",
     strong: formData.get("strong") ?? "",
     weak: formData.get("weak") ?? "",
+    gender: formData.get("gender"),
+    genderPref: formData.get("genderPref"),
+    campus: formData.get("campus") ?? "",
+    campusPref: formData.getAll("campusPref"),
+    personality: formData.get("personality") ?? "",
+    personalityPref: formData.get("personalityPref"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const data = parsed.data;
@@ -82,6 +118,8 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
     // 资料 id 与账号 id 相同
     await db.insert(students).values({ ...data, tags, aiSummary, id: sid, createdAt: new Date() });
   }
+  // 后台预先翻译成三种语言，别人用其他语言浏览时无需等待
+  after(() => ensureTranslations([...data.courses, aiSummary, data.strong, data.weak]));
   redirect(localePath(locale, "/me"));
 }
 
@@ -124,8 +162,9 @@ export async function formGroup(formData: FormData) {
       .filter((s): s is Student => !!s)
       .slice(0, want);
     const candidate = [me, ...picked];
-    // 只接受有共同空闲时间的 AI 方案，否则回退到规则组队
-    if (picked.length > 0 && commonSlots(candidate).length > 0) members = candidate;
+    // 只接受彼此偏好兼容、且有共同空闲时间的 AI 方案，否则回退到规则组队
+    const pairwiseOk = candidate.every((a, i) => candidate.slice(i + 1).every((b) => compatible(a, b)));
+    if (picked.length > 0 && pairwiseOk && commonSlots(candidate).length > 0) members = candidate;
   }
   const byAi = members !== null;
   members ??= greedyGroup(
@@ -134,24 +173,143 @@ export async function formGroup(formData: FormData) {
     me.groupSize,
   );
 
-  // 组名、理由和计划用发起人当时的语言生成并保存
-  const meetingSlots = commonSlots(members);
+  // 小组先只有发起人自己，其余人收到邀请，接受后才加入
+  const id = await createGroupWithInvites(me, course, members.slice(1), t, {
+    name: byAi ? ai?.groupName : undefined,
+    reason: byAi ? ai?.reason : undefined,
+    plan: byAi ? ai?.plan : undefined,
+    byAi,
+  });
+  redirect(to(`/groups/${id}`));
+}
+
+/** 建组并给其他人发邀请；组名、理由和计划用发起人当时的语言生成并保存 */
+async function createGroupWithInvites(
+  me: Student,
+  course: string,
+  invitees: Student[],
+  t: Dict,
+  ai: { name?: string; reason?: string; plan?: PlanStep[]; byAi: boolean },
+) {
+  const db = await getDb();
+  const expectedSlots = commonSlots([me, ...invitees]);
+  // 默认文案里嵌入的课程名先换成当前语言，避免一句话里夹两种语言
+  const { locale } = await getActionI18n();
+  const courseName = (await getTranslator([course], locale))(course);
   const id = crypto.randomUUID();
   await db.insert(groups).values({
     id,
     course,
-    name: (byAi && ai?.groupName) || t.defaults.groupName(course),
-    memberIds: members.map((m) => m.id),
-    meetingSlots,
-    reason: (byAi && ai?.reason) || t.defaults.groupReason(slotList(t, meetingSlots.slice(0, 3))),
-    plan:
-      byAi && ai?.plan.length
-        ? ai.plan.slice(0, 6)
-        : t.defaults.plan(course, slotList(t, meetingSlots.slice(0, 2)) || t.defaults.anytime),
-    byAi,
+    name: ai.name || t.defaults.groupName(courseName),
+    memberIds: [me.id],
+    meetingSlots: expectedSlots,
+    reason: ai.reason || t.defaults.groupReason(slotList(t, expectedSlots.slice(0, 3))),
+    plan: ai.plan?.length
+      ? ai.plan.slice(0, 6)
+      : t.defaults.plan(courseName, slotList(t, expectedSlots.slice(0, 2)) || t.defaults.anytime),
+    byAi: ai.byAi,
     createdAt: new Date(),
   });
-  redirect(to(`/groups/${id}`));
+  await sendInvites(id, me.id, invitees.map((s) => s.id));
+  const [saved] = await db.select().from(groups).where(eq(groups.id, id));
+  after(() => ensureTranslations([saved.course, saved.name, saved.reason, ...saved.plan.flatMap((p) => [p.title, p.detail])]));
+  return id;
+}
+
+async function sendInvites(groupId: string, inviterId: string, inviteeIds: string[]) {
+  if (inviteeIds.length === 0) return;
+  const db = await getDb();
+  await db.insert(invites).values(
+    inviteeIds.map((inviteeId) => ({
+      id: crypto.randomUUID(),
+      groupId,
+      inviterId,
+      inviteeId,
+      status: "pending" as const,
+      createdAt: new Date(),
+    })),
+  );
+}
+
+/** 从推荐列表里手动勾选同学，建组并发邀请 */
+export async function inviteToNewGroup(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { locale, t } = await getActionI18n();
+  const sid = await currentStudentId();
+  if (!sid) return { error: t.join.errors.sessionExpired };
+  const course = String(formData.get("course") ?? "");
+  const picked = [...new Set(formData.getAll("invitee").map(String))];
+
+  const db = await getDb();
+  const all = await db.select().from(students);
+  const me = all.find((s) => s.id === sid);
+  if (!me || !me.courses.includes(course)) return { error: t.errors.notMember };
+  if (picked.length === 0) return { error: t.me.errors.noneSelected };
+  if (picked.length > 5) return { error: t.me.errors.tooMany(5) };
+
+  // 只能邀请同课、且双方偏好兼容的同学
+  const invitees = all.filter((s) => picked.includes(s.id) && s.courses.includes(course) && compatible(me, s));
+  if (invitees.length === 0) return { error: t.me.errors.noneSelected };
+
+  const id = await createGroupWithInvites(me, course, invitees, t, { byAi: false });
+  redirect(localePath(locale, `/groups/${id}`));
+}
+
+/** 小组成员邀请更多同学 */
+export async function inviteMore(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { t } = await getActionI18n();
+  const ctx = await requireMember(String(formData.get("groupId")));
+  if (!ctx) return { error: t.errors.notMember };
+  const picked = [...new Set(formData.getAll("invitee").map(String))];
+  if (picked.length === 0) return { error: t.me.errors.noneSelected };
+  if (picked.length > 5) return { error: t.me.errors.tooMany(5) };
+
+  const { db, group, me } = ctx;
+  const [all, existing] = await Promise.all([
+    db.select().from(students),
+    db.select().from(invites).where(and(eq(invites.groupId, group.id), eq(invites.status, "pending"))),
+  ]);
+  const members = all.filter((s) => group.memberIds.includes(s.id));
+  const invitees = all.filter(
+    (s) =>
+      picked.includes(s.id) &&
+      s.courses.includes(group.course) &&
+      !group.memberIds.includes(s.id) &&
+      !existing.some((i) => i.inviteeId === s.id) &&
+      members.every((m) => compatible(m, s)),
+  );
+  await sendInvites(group.id, me.id, invitees.map((s) => s.id));
+  refresh();
+  return { ok: t.group.invitesSent };
+}
+
+/** 接受或婉拒邀请 */
+export async function respondInvite(formData: FormData) {
+  const { locale } = await getActionI18n();
+  const sid = await currentStudentId();
+  if (!sid) redirect(localePath(locale, "/login"));
+  const inviteId = String(formData.get("inviteId"));
+  const accept = formData.get("decision") === "accept";
+
+  const db = await getDb();
+  const [invite] = await db
+    .select()
+    .from(invites)
+    .where(and(eq(invites.id, inviteId), eq(invites.inviteeId, sid), eq(invites.status, "pending")));
+  if (!invite) redirect(localePath(locale, "/me"));
+
+  await db.update(invites).set({ status: accept ? "accepted" : "declined" }).where(eq(invites.id, invite.id));
+  if (!accept) {
+    refresh();
+    return;
+  }
+
+  const [group] = await db.select().from(groups).where(eq(groups.id, invite.groupId));
+  if (group && !group.memberIds.includes(sid)) {
+    const memberIds = [...group.memberIds, sid];
+    const members = await db.select().from(students).where(inArray(students.id, memberIds));
+    await db.update(groups).set({ memberIds, meetingSlots: commonSlots(members) }).where(eq(groups.id, group.id));
+  }
+  redirect(localePath(locale, `/groups/${invite.groupId}`));
 }
 
 /** 互补匹配：请 Gemini 评估并缓存结果 */
@@ -179,5 +337,6 @@ export async function findComplements(formData: FormData) {
       target: [complements.studentId, complements.course],
       set: { picks, byAi: aiPicks !== null, createdAt: new Date() },
     });
+  after(() => ensureTranslations(picks.map((p) => p.reason)));
   redirect(to("/me?mode=complement"));
 }

@@ -9,6 +9,7 @@ import { localePath } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
 import { DIFFICULTIES } from "@/lib/constants";
 import { geminiEnabled } from "@/lib/gemini";
+import { getTranslator } from "@/lib/translate";
 
 type DiffKey = (typeof DIFFICULTIES)[number]["key"];
 
@@ -21,6 +22,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
     ? await db.select().from(quizAttempts).where(inArray(quizAttempts.quizId, list.map((x) => x.id)))
     : [];
   const isMember = meId !== null && group.memberIds.includes(meId);
+  const tr = await getTranslator([group.course, ...list.map((x) => x.topic)], locale);
 
   // 小组总榜：累计答对题数
   const board = members
@@ -63,7 +65,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
               <li key={x.id}>
                 <Link href={localePath(locale, `/quizzes/${x.id}`)} className="flex items-center gap-3 py-2.5 hover:text-accent">
                   <div className="flex-1">
-                    <div className="font-medium">{x.topic}</div>
+                    <div className="font-medium">{tr(x.topic)}</div>
                     <div className="text-xs text-muted">
                       {q.meta(
                         x.questions.length,
@@ -94,7 +96,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
             <summary className="cursor-pointer text-sm text-accent">{q.newQuiz}</summary>
             <ActionForm action={createQuiz} className="mt-3 space-y-3">
               <input type="hidden" name="groupId" value={group.id} />
-              <input name="topic" className="input" placeholder={q.topicPlaceholder(group.course)} />
+              <input name="topic" className="input" placeholder={q.topicPlaceholder(tr(group.course))} />
               <textarea name="notes" rows={3} className="input" placeholder={q.notesPlaceholder} />
               <div className="flex flex-wrap gap-3">
                 <select name="count" defaultValue={5} className="input !w-auto">

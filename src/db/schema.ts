@@ -1,5 +1,5 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import type { Goal, Mode, Pace } from "@/lib/constants";
+import type { Campus, Gender, GenderPref, Goal, Mode, Pace, Personality, PersonalityPref } from "@/lib/constants";
 
 export const students = sqliteTable("students", {
   id: text("id").primaryKey(),
@@ -15,6 +15,12 @@ export const students = sqliteTable("students", {
   bio: text("bio").notNull().default(""),
   strong: text("strong").notNull().default(""),
   weak: text("weak").notNull().default(""),
+  gender: text("gender").$type<Gender>().notNull().default("undisclosed"),
+  genderPref: text("gender_pref").$type<GenderPref>().notNull().default("any"),
+  campus: text("campus").$type<Campus | "">().notNull().default(""),
+  campusPref: text("campus_pref", { mode: "json" }).$type<Campus[]>().notNull().default([]),
+  personality: text("personality").$type<Personality | "">().notNull().default(""),
+  personalityPref: text("personality_pref").$type<PersonalityPref>().notNull().default("any"),
   aiSummary: text("ai_summary"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
@@ -58,7 +64,16 @@ export const studySessions = sqliteTable("study_sessions", {
 });
 
 /** AI 出题 */
-export type QuizQuestion = { question: string; options: string[]; answer: number; explanation: string };
+export type QuizQuestion = {
+  question: string;
+  options: string[];
+  answer: number;
+  explanation: string;
+  /** 考查的知识点 */
+  concept?: string;
+  /** 每个选项的说明：错误选项对应的常见误解（旧题目没有） */
+  optionNotes?: string[];
+};
 export const quizzes = sqliteTable("quizzes", {
   id: text("id").primaryKey(),
   groupId: text("group_id").notNull(),
@@ -104,11 +119,44 @@ export const authSessions = sqliteTable("auth_sessions", {
   expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
 });
 
+/** 组队邀请：被邀请人接受后才加入 groups.memberIds */
+export type InviteStatus = "pending" | "accepted" | "declined";
+export const invites = sqliteTable("invites", {
+  id: text("id").primaryKey(),
+  groupId: text("group_id").notNull(),
+  inviterId: text("inviter_id").notNull(),
+  inviteeId: text("invitee_id").notNull(),
+  status: text("status").$type<InviteStatus>().notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
+/** 小组共享代码文件 */
+export const codeFiles = sqliteTable("code_files", {
+  id: text("id").primaryKey(),
+  groupId: text("group_id").notNull(),
+  name: text("name").notNull(),
+  content: text("content").notNull(),
+  version: integer("version").notNull(),
+  updatedBy: text("updated_by").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+/** 用户内容 / AI 内容的翻译缓存，按原文的 SHA-256 存 */
+export const translations = sqliteTable("translations", {
+  hash: text("hash").primaryKey(),
+  source: text("source").notNull(),
+  zh: text("zh").notNull(),
+  en: text("en").notNull(),
+  es: text("es").notNull(),
+});
+
 export type Student = typeof students.$inferSelect;
 export type Group = typeof groups.$inferSelect;
 export type StudySession = typeof studySessions.$inferSelect;
 export type Quiz = typeof quizzes.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
+export type Invite = typeof invites.$inferSelect;
+export type CodeFile = typeof codeFiles.$inferSelect;
 
 // 首次启动时自动建表，免去迁移工具
 export const DDL = `
@@ -189,6 +237,33 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   expires_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS auth_sessions_user ON auth_sessions (user_id);
+CREATE TABLE IF NOT EXISTS invites (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL,
+  inviter_id TEXT NOT NULL,
+  invitee_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS invites_invitee ON invites (invitee_id, status);
+CREATE INDEX IF NOT EXISTS invites_group ON invites (group_id);
+CREATE TABLE IF NOT EXISTS code_files (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  content TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  updated_by TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (group_id, name)
+);
+CREATE TABLE IF NOT EXISTS translations (
+  hash TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  zh TEXT NOT NULL,
+  en TEXT NOT NULL,
+  es TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS reviews (
   group_id TEXT NOT NULL,
   reviewer_id TEXT NOT NULL,
@@ -206,4 +281,10 @@ CREATE TABLE IF NOT EXISTS reviews (
 export const MIGRATIONS = [
   "ALTER TABLE students ADD COLUMN strong TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE students ADD COLUMN weak TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE students ADD COLUMN gender TEXT NOT NULL DEFAULT 'undisclosed'",
+  "ALTER TABLE students ADD COLUMN gender_pref TEXT NOT NULL DEFAULT 'any'",
+  "ALTER TABLE students ADD COLUMN campus TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE students ADD COLUMN campus_pref TEXT NOT NULL DEFAULT '[]'",
+  "ALTER TABLE students ADD COLUMN personality TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE students ADD COLUMN personality_pref TEXT NOT NULL DEFAULT 'any'",
 ];

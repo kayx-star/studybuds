@@ -39,14 +39,45 @@ export type JoinLabels = {
   goals: Option[];
   styleTags: Option[];
   groupSizes: Option[];
+  preferences: string;
+  gender: string;
+  genderPref: string;
+  genderHint: string;
+  campus: string;
+  campusPref: string;
+  campusNone: string;
+  personality: string;
+  personalityPref: string;
+  genders: Option[];
+  genderPrefs: Option[];
+  campuses: Option[];
+  personalities: Option[];
+  personalityPrefs: Option[];
 };
 
-function Choice({ name, options, value }: { name: string; options: Option[]; value?: string }) {
+function Choice({
+  name,
+  options,
+  value,
+  multiple,
+}: {
+  name: string;
+  options: Option[];
+  value?: string | string[];
+  multiple?: boolean;
+}) {
+  const checked = (key: string) => (Array.isArray(value) ? value.includes(key) : value === key);
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((o) => (
         <label key={o.key} className="cursor-pointer">
-          <input type="radio" name={name} value={o.key} defaultChecked={value === o.key} className="peer sr-only" />
+          <input
+            type={multiple ? "checkbox" : "radio"}
+            name={name}
+            value={o.key}
+            defaultChecked={checked(o.key)}
+            className="peer sr-only"
+          />
           <span className="btn-ghost peer-checked:border-accent peer-checked:bg-accent-soft peer-checked:text-accent">
             {o.label}
           </span>
@@ -192,6 +223,41 @@ export function JoinForm({ student, l }: { student: Student | null; l: JoinLabel
         <div>
           <label className="label" htmlFor="bio">{l.bio}</label>
           <textarea id="bio" name="bio" rows={4} className="input" defaultValue={student?.bio} placeholder={l.bioPlaceholder} />
+        </div>
+      </div>
+
+      <div className="card space-y-5">
+        <h2 className="font-semibold">{l.preferences}</h2>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <span className="label">{l.gender}</span>
+            <Choice name="gender" options={l.genders} value={student?.gender ?? "undisclosed"} />
+          </div>
+          <div>
+            <span className="label">{l.genderPref}</span>
+            <Choice name="genderPref" options={l.genderPrefs} value={student?.genderPref ?? "any"} />
+          </div>
+          <p className="-mt-2 text-xs text-muted sm:col-span-2">{l.genderHint}</p>
+          <div>
+            <span className="label">{l.campus}</span>
+            <Choice name="campus" options={[{ key: "", label: l.campusNone }, ...l.campuses]} value={student?.campus ?? ""} />
+          </div>
+          <div>
+            <span className="label">{l.campusPref}</span>
+            <Choice name="campusPref" options={l.campuses} value={student?.campusPref ?? []} multiple />
+          </div>
+          <div>
+            <span className="label">{l.personality}</span>
+            <Choice
+              name="personality"
+              options={[{ key: "", label: l.campusNone }, ...l.personalities]}
+              value={student?.personality ?? ""}
+            />
+          </div>
+          <div>
+            <span className="label">{l.personalityPref}</span>
+            <Choice name="personalityPref" options={l.personalityPrefs} value={student?.personalityPref ?? "any"} />
+          </div>
         </div>
       </div>
 

@@ -12,6 +12,9 @@ export function slotLabel(t: Dict, slot: string) {
 
 export const slotList = (t: Dict, slots: string[]) => t.list(slots.map((s) => slotLabel(t, s)));
 
+export const campusLabel = (t: Dict, campus: string) =>
+  t.options.campuses[campus as keyof Dict["options"]["campuses"]] ?? campus;
+
 export const tagLabel = (t: Dict, tag: string) => t.options.tags[tag] ?? tag;
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -47,6 +50,14 @@ export function reasonText(t: Dict, r: Reason) {
       return t.reason.sharedTags(t.list(r.tags.map((tag) => tagLabel(t, tag))));
     case "modeConflict":
       return t.reason.modeConflict;
+    case "sameCampus":
+      return t.reason.sameCampus(campusLabel(t, r.campus));
+    case "preferredCampus":
+      return t.reason.preferredCampus(campusLabel(t, r.campus));
+    case "otherCampus":
+      return t.reason.otherCampus(campusLabel(t, r.campus));
+    case "personalityFit":
+      return t.reason.personalityFit;
     case "rating":
       return t.reason.rating(r.avg.toFixed(1), r.count);
   }

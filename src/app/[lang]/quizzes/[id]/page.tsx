@@ -6,14 +6,50 @@ import { submitQuiz } from "@/app/group-actions";
 import { SubmitButton } from "@/components/submit-button";
 import { getDb } from "@/db";
 import { requireMember } from "@/db/queries";
-import { quizAttempts, quizzes, students } from "@/db/schema";
+import { quizAttempts, quizzes, students, type QuizQuestion } from "@/db/schema";
 import { localePath } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
+import { getTranslator, type Translate } from "@/lib/translate";
+import type { Dict } from "@/i18n/zh";
 import type { DIFFICULTIES } from "@/lib/constants";
 
 type DiffKey = (typeof DIFFICULTIES)[number]["key"];
 
 const LETTERS = ["A", "B", "C", "D"];
+
+/** 按知识点汇总错题，告诉学生该复习什么 */
+function ReviewSummary({
+  questions,
+  answers,
+  t,
+  tr,
+}: {
+  questions: QuizQuestion[];
+  answers: number[];
+  t: Dict;
+  tr: Translate;
+}) {
+  const missed = new Map<string, number>();
+  questions.forEach((q, i) => {
+    if (answers[i] !== q.answer) {
+      const key = tr(q.concept) || tr(q.question).slice(0, 40);
+      missed.set(key, (missed.get(key) ?? 0) + 1);
+    }
+  });
+  if (missed.size === 0) return <p className="card text-sm">{t.quiz.allCorrect}</p>;
+  return (
+    <section className="card space-y-2 border-red-300">
+      <h2 className="font-semibold">{t.quiz.reviewTitle}</h2>
+      <ul className="flex flex-wrap gap-2">
+        {[...missed].map(([concept, n]) => (
+          <li key={concept} className="rounded-full bg-red-500/10 px-3 py-1 text-sm text-red-700">
+            {t.quiz.reviewItem(concept, n)}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, { locale, t }] = await Promise.all([params, getI18n()]);
@@ -30,6 +66,15 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
     (await db.select().from(students).where(inArray(students.id, ctx.group.memberIds))).map((s) => [s.id, s.name]),
   );
   const total = quiz.questions.length;
+  const tr = await getTranslator(
+    [
+      ctx.group.course,
+      ctx.group.name,
+      quiz.topic,
+      ...quiz.questions.flatMap((q) => [q.question, q.explanation, q.concept, ...q.options, ...(q.optionNotes ?? [])]),
+    ],
+    locale,
+  );
   const author = names.get(quiz.createdBy) ?? t.common.member;
   const difficulty = t.options.difficulties[quiz.difficulty as DiffKey] ?? quiz.difficulty;
 
@@ -37,10 +82,10 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
     <div className="space-y-6">
       <div>
         <Link href={localePath(locale, `/groups/${quiz.groupId}`)} className="text-sm text-muted hover:text-fg">
-          {tq.backTo(ctx.group.name)}
+          {tq.backTo(tr(ctx.group.name))}
         </Link>
-        <div className="mt-3 text-sm text-muted">{tq.header(ctx.group.course, difficulty, total, author)}</div>
-        <h1 className="text-2xl font-semibold">{quiz.topic}</h1>
+        <div className="mt-3 text-sm text-muted">{tq.header(tr(ctx.group.course), difficulty, total, author)}</div>
+        <h1 className="text-2xl font-semibold">{tr(quiz.topic)}</h1>
       </div>
 
       {mine ? (
@@ -75,6 +120,8 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
             </ol>
           </section>
 
+          <ReviewSummary questions={quiz.questions} answers={mine.answers} t={t} tr={tr} />
+
           <ol className="space-y-4">
             {quiz.questions.map((q, i) => {
               const picked = mine.answers[i];
@@ -82,8 +129,9 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
               return (
                 <li key={i} className="card space-y-3">
                   <div className="font-medium">
-                    {right ? "✅" : "❌"} {i + 1}. {q.question}
+                    {right ? "✅" : "❌"} {i + 1}. {tr(q.question)}
                   </div>
+                  {q.concept && <span className="chip">{tq.concept(tr(q.concept))}</span>}
                   <ul className="space-y-1.5 text-sm">
                     {q.options.map((opt, j) => (
                       <li
@@ -96,12 +144,18 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
                               : "border-line"
                         }`}
                       >
-                        {LETTERS[j]}. {opt}
+                        {LETTERS[j]}. {tr(opt)}
                         {j === picked && <span className="ml-2 text-xs text-muted">{tq.yourChoice}</span>}
                       </li>
                     ))}
                   </ul>
-                  <p className="rounded-lg bg-accent-soft/60 px-3 py-2 text-sm">💡 {q.explanation}</p>
+                  {!right && picked >= 0 && q.optionNotes?.[picked] && (
+                    <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm">
+                      🔍 {tq.whyWrong(LETTERS[picked])}
+                      {tr(q.optionNotes[picked])}
+                    </p>
+                  )}
+                  <p className="rounded-lg bg-accent-soft/60 px-3 py-2 text-sm">💡 {tr(q.explanation)}</p>
                 </li>
               );
             })}
@@ -116,13 +170,13 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
             <fieldset key={i} className="card space-y-2">
               <legend className="sr-only">{tq.question(i + 1)}</legend>
               <div className="font-medium">
-                {i + 1}. {q.question}
+                {i + 1}. {tr(q.question)}
               </div>
               {q.options.map((opt, j) => (
                 <label key={j} className="flex cursor-pointer items-start gap-2 rounded-lg border border-line px-3 py-2 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
                   <input type="radio" name={`q${i}`} value={j} required className="mt-0.5 accent-[var(--accent)]" />
                   <span>
-                    {LETTERS[j]}. {opt}
+                    {LETTERS[j]}. {tr(opt)}
                   </span>
                 </label>
               ))}
