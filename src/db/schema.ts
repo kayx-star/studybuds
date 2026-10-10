@@ -143,6 +143,17 @@ export const codeFiles = sqliteTable("code_files", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
+/** 私信：createdAt 用毫秒，保证同一秒内的消息顺序正确 */
+export const messages = sqliteTable("messages", {
+  id: text("id").primaryKey(),
+  senderId: text("sender_id").notNull(),
+  recipientId: text("recipient_id").notNull(),
+  body: text("body").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  readAt: integer("read_at", { mode: "timestamp_ms" }),
+});
+export type Message = typeof messages.$inferSelect;
+
 /** 重设密码令牌：邮件里放随机令牌，这里只存 SHA-256；一次性、30 分钟有效 */
 export const passwordResets = sqliteTable("password_resets", {
   tokenHash: text("token_hash").primaryKey(),
@@ -267,6 +278,16 @@ CREATE TABLE IF NOT EXISTS code_files (
   updated_at INTEGER NOT NULL,
   UNIQUE (group_id, name)
 );
+CREATE TABLE IF NOT EXISTS messages (
+  id TEXT PRIMARY KEY,
+  sender_id TEXT NOT NULL,
+  recipient_id TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  read_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS messages_pair ON messages (sender_id, recipient_id, created_at);
+CREATE INDEX IF NOT EXISTS messages_unread ON messages (recipient_id, read_at);
 CREATE TABLE IF NOT EXISTS password_resets (
   token_hash TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,

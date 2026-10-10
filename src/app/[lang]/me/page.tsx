@@ -62,6 +62,14 @@ function Pick({ id, invited, t }: { id: string; invited: boolean; t: Dict }) {
   );
 }
 
+function MessageLink({ id, t, locale }: { id: string; t: Dict; locale: Locale }) {
+  return (
+    <Link href={localePath(locale, `/messages/${id}`)} className="inline-block text-xs text-accent hover:underline">
+      {t.chat.message}
+    </Link>
+  );
+}
+
 /** 展开查看同学的完整介绍和互评分（不含联系方式和评语，评语只给被评价的人看） */
 function ProfileDetails({ s, rating, t, tr }: { s: Student; rating?: Rating; t: Dict; tr: Translate }) {
   const o = t.options;
@@ -214,7 +222,7 @@ function GroupButton({ course, mode, size, t }: { course: string; mode: MatchMod
   );
 }
 
-function SimilarCourse({ me, all, course, ratings, t, invitedIds, tr }: Ctx) {
+function SimilarCourse({ me, all, course, ratings, t, locale, invitedIds, tr }: Ctx) {
   const matches = recommend(me, all, course, ratings);
   return (
     <section className="space-y-3">
@@ -248,6 +256,7 @@ function SimilarCourse({ me, all, course, ratings, t, invitedIds, tr }: Ctx) {
                 ))}
               </ul>
               <ProfileDetails s={m.student} rating={ratings.get(m.student.id)} t={t} tr={tr} />
+              <MessageLink id={m.student.id} t={t} locale={locale} />
             </div>
           ))}
         </div>
@@ -312,6 +321,7 @@ async function ComplementCourse({ me, all, course, ratings, t, locale, invitedId
                   {s.weak && <div>{t.me.weak}{tr(s.weak)}</div>}
                 </div>
                 <ProfileDetails s={s} rating={ratings.get(s.id)} t={t} tr={tr} />
+                <MessageLink id={s.id} t={t} locale={locale} />
               </div>
             );
           })}
@@ -351,6 +361,7 @@ function ReceivedInvites({
                 {tr(g.name)} · {t.me.groupMeta(g.memberIds.length, slotList(t, g.meetingSlots.slice(0, 3)) || t.group.noCommonSlots)}
               </div>
             </div>
+            <Link href={localePath(locale, `/messages/${i.inviterId}`)} className="btn-ghost">{t.chat.message}</Link>
             <Link href={localePath(locale, `/groups/${g.id}`)} className="btn-ghost">{t.me.viewGroup}</Link>
             <form action={respondInvite}>
               <input type="hidden" name="inviteId" value={i.id} />

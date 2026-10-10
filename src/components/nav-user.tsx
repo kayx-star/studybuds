@@ -1,8 +1,8 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { logout } from "@/app/auth-actions";
 import { getDb } from "@/db";
-import { invites, users } from "@/db/schema";
+import { invites, messages, users } from "@/db/schema";
 import { localePath } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
 import { currentStudentId } from "@/lib/session";
@@ -19,12 +19,16 @@ export async function NavUser() {
     );
   }
   const db = await getDb();
-  const [[user], [pending]] = await Promise.all([
+  const [[user], [pending], [unread]] = await Promise.all([
     db.select({ email: users.email }).from(users).where(eq(users.id, uid)),
     db
       .select({ n: count() })
       .from(invites)
       .where(and(eq(invites.inviteeId, uid), eq(invites.status, "pending"))),
+    db
+      .select({ n: count() })
+      .from(messages)
+      .where(and(eq(messages.recipientId, uid), isNull(messages.readAt))),
   ]);
   return (
     <>
@@ -32,6 +36,10 @@ export async function NavUser() {
       <Link href={to("/me")} className="hover:text-fg">
         {t.nav.matches}
         {pending.n > 0 && <span className="ml-1 rounded-full bg-red-500 px-1.5 text-xs text-white">{pending.n}</span>}
+      </Link>
+      <Link href={to("/messages")} className="hover:text-fg">
+        {t.chat.nav}
+        {unread.n > 0 && <span className="ml-1 rounded-full bg-red-500 px-1.5 text-xs text-white">{unread.n}</span>}
       </Link>
       <span className="hidden text-xs md:inline">{user?.email}</span>
       <form action={logout}>

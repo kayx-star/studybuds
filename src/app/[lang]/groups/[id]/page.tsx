@@ -76,6 +76,11 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
                 </div>
                 {m.strong && <div className="text-xs">💪 {tr(m.strong)}</div>}
                 <div className="text-xs">{isMember ? `📮 ${m.contact}` : t.group.contactHidden}</div>
+                {sid && m.id !== sid && (
+                  <Link href={localePath(locale, `/messages/${m.id}`)} className="inline-block text-xs text-accent hover:underline">
+                    {t.chat.message}
+                  </Link>
+                )}
               </div>
             );
           })}
@@ -110,6 +115,8 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
             label={t.group.leave}
             pending={t.group.leaving}
             confirmText={t.group.leaveConfirm}
+            confirmLabel={t.group.leaveYes}
+            cancelLabel={t.group.leaveNo}
           />
         </div>
       )}
