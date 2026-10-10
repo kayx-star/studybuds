@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { getDb } from "@/db";
@@ -66,7 +66,8 @@ export const currentStudentId = cache(async (): Promise<string | null> => {
   const [row] = await db
     .select({ userId: authSessions.userId })
     .from(authSessions)
-    .where(and(eq(authSessions.tokenHash, sha256(token)), gt(authSessions.expiresAt, new Date())));
+    // 过期判断交给数据库（unixepoch() 为当前秒数），渲染期间不能直接用 new Date()
+    .where(and(eq(authSessions.tokenHash, sha256(token)), gt(authSessions.expiresAt, sql`(unixepoch())`)));
   return row?.userId ?? null;
 });
 

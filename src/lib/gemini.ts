@@ -11,18 +11,31 @@ const MODEL = process.env.GEMINI_MODEL ?? "gemini-flash-latest";
 
 export const geminiEnabled = ai !== null;
 
+// 503（模型繁忙）和 429（限流）通常是暂时的，值得重试
+const RETRY_DELAYS_MS = [1000, 2000];
+const isTransient = (err: unknown) => {
+  const status = (err as { status?: number }).status;
+  return status === 503 || status === 429;
+};
+
 async function askJson<T>(prompt: string, schema: object): Promise<T | null> {
   if (!ai) return null;
-  try {
-    const res = await ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
-      config: { responseMimeType: "application/json", responseJsonSchema: schema },
-    });
-    return JSON.parse(res.text ?? "") as T;
-  } catch (err) {
-    console.error("[gemini] 调用失败，改用规则兜底：", err);
-    return null;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await ai.models.generateContent({
+        model: MODEL,
+        contents: prompt,
+        config: { responseMimeType: "application/json", responseJsonSchema: schema },
+      });
+      return JSON.parse(res.text ?? "") as T;
+    } catch (err) {
+      if (isTransient(err) && attempt < RETRY_DELAYS_MS.length) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+        continue;
+      }
+      console.error("[gemini] 调用失败，改用规则兜底：", err);
+      return null;
+    }
   }
 }
 
