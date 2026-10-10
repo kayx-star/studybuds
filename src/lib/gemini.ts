@@ -27,7 +27,27 @@ const TRANSLATE_MODEL = process.env.GEMINI_TRANSLATE_MODEL ?? "gemini-flash-lite
 // 503（模型繁忙）和短暂的 429（每分钟限流）值得重试；
 // 429 且要等很久（如免费版每日额度用完）时，直接暂停该模型，到时间前不再调用
 const RETRY_DELAYS_MS = [1000, 2000];
-const pausedUntil = new Map<string, number>();
+// 存在 globalThis 上，保证页面渲染和 Server Action 读到的是同一份状态
+const g = globalThis as unknown as { __geminiPausedUntil?: Map<string, number> };
+const pausedUntil = (g.__geminiPausedUntil ??= new Map<string, number>());
+
+/** 某个模型因额度用完而暂停时，返回恢复时间（毫秒时间戳）；否则 null */
+const pausedTill = (model: string) => {
+  const until = pausedUntil.get(model) ?? 0;
+  return until > Date.now() ? until : null;
+};
+
+/** 页面用来判断 Gemini 现在能不能用、要不要显示“普通版”提示 */
+export function geminiStatus() {
+  const main = pausedTill(MODEL);
+  return {
+    enabled: geminiEnabled,
+    /** 组队/互补/出题等主功能现在可用 */
+    ready: geminiEnabled && main === null,
+    mainPausedUntil: main,
+    translatePausedUntil: pausedTill(TRANSLATE_MODEL),
+  };
+}
 
 function retryDelayMs(err: unknown) {
   const match = String((err as { message?: string }).message ?? "").match(/"retryDelay":"(\d+(?:\.\d+)?)s"/);
@@ -37,7 +57,7 @@ function retryDelayMs(err: unknown) {
 /** language 为输出语言的名称（如 "English"），来自字典的 geminiLanguage；传空字符串表示不限定 */
 async function askJson<T>(prompt: string, schema: object, language: string, model = MODEL): Promise<T | null> {
   if (!ai) return null;
-  if ((pausedUntil.get(model) ?? 0) > Date.now()) return null;
+  if (pausedTill(model) !== null) return null;
   if (language) prompt += `\n\n请用${language}书写所有给用户看的文字内容（JSON 键名、id、标签枚举值保持原样）。`;
   for (let attempt = 0; ; attempt++) {
     try {

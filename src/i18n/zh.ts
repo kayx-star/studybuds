@@ -214,6 +214,16 @@ export const zh = {
       noneSelected: "请至少勾选一位同学",
       tooMany: (n: number) => `一次最多邀请 ${n} 位同学`,
     },
+    myReviewsTitle: "⭐ 我收到的评价",
+    noReviews: "还没有收到评价。和组员一起学习后，他们可以在小组页给你打分。",
+    reviewMeta: (who: string, group: string, when: string) => `${who} · ${group} · ${when}`,
+    details: "查看详细介绍",
+    bio: "自我介绍：",
+    noBio: "TA 还没有写自我介绍。",
+    campusLabel: "校区：",
+    personalityLabel: "性格：",
+    ratingsLabel: "互评：",
+    noRating: "暂无互评",
     loadingMatches: "正在计算匹配…",
     ratingTitle: (count: number) => `${count} 条互评`,
   },
@@ -341,6 +351,8 @@ export const zh = {
     contribution: "学习贡献",
     communication: "沟通友好",
     reviewed: "已评价",
+    anonymous: "匿名评价（不勾选则显示你的昵称）",
+    anonymousName: "匿名同学",
     commentPlaceholder: "匿名评语（可选）",
     submit: "提交评价",
     update: "更新评价",
@@ -391,6 +403,14 @@ export const zh = {
 3. 按提示安装推荐的 “Extension Pack for Java” 插件
 4. 打开 src 里的 .java 文件：编译错误会显示在“问题”面板里，点击 main 方法上方的 “Run” 即可运行
 `,
+  },
+  gemini: {
+    quotaBanner: (wait: string) =>
+      `⚠️ Gemini 今日免费次数已用完，组队和互补分析暂时使用普通版（规则算法），AI 出题和画像分析暂停，约 ${wait}后自动恢复。`,
+    translateBanner: (wait: string) => `⚠️ Gemini 翻译次数已用完，部分内容暂时显示原文，约 ${wait}后恢复。`,
+    duration: (h: number, m: number) => (h > 0 ? `${h} 小时 ${m} 分钟` : `${Math.max(m, 1)} 分钟`),
+    basic: "（普通版）",
+    quizPaused: (wait: string) => `Gemini 次数已用完，AI 出题暂停，约 ${wait}后恢复。`,
   },
   errors: {
     notMember: "只有小组成员可以操作",

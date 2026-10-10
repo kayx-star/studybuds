@@ -101,6 +101,8 @@ export const reviews = sqliteTable("reviews", {
   contribution: integer("contribution").notNull(),
   communication: integer("communication").notNull(),
   comment: text("comment").notNull(),
+  /** 评价人可以选择匿名（默认）或署上自己的昵称 */
+  anonymous: integer("anonymous", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
@@ -301,4 +303,5 @@ export const MIGRATIONS = [
   "ALTER TABLE students ADD COLUMN campus_pref TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE students ADD COLUMN personality TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE students ADD COLUMN personality_pref TEXT NOT NULL DEFAULT 'any'",
+  "ALTER TABLE reviews ADD COLUMN anonymous INTEGER NOT NULL DEFAULT 1",
 ];

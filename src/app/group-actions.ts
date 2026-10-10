@@ -178,6 +178,8 @@ export async function saveReview(_prev: FormState, formData: FormData): Promise<
     contribution: data.contribution,
     communication: data.communication,
     comment: data.comment,
+    // 没勾选的复选框不会出现在表单里
+    anonymous: formData.get("anonymous") === "on",
     createdAt: new Date(),
   };
   await ctx.db

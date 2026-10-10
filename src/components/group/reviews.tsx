@@ -3,7 +3,9 @@ import { saveReview } from "@/app/group-actions";
 import { ActionForm } from "@/components/action-form";
 import { SubmitButton } from "@/components/submit-button";
 import { getDb } from "@/db";
-import { reviews, type Group, type Student } from "@/db/schema";
+import { reviews, students, type Group, type Student } from "@/db/schema";
+import { localizeNames } from "@/i18n/names";
+import { getTranslator } from "@/lib/translate";
 import { getI18n } from "@/i18n/server";
 
 const ASPECTS = ["reliability", "contribution", "communication"] as const;
@@ -26,7 +28,7 @@ function StarInput({ name, value }: { name: string; value?: number }) {
 
 export async function Reviews({ group, members, meId }: { group: Group; members: Student[]; meId: string | null }) {
   if (meId === null || !group.memberIds.includes(meId)) return null;
-  const { t } = await getI18n();
+  const { locale, t } = await getI18n();
   const r = t.reviews;
   const db = await getDb();
   const [given, received] = await Promise.all([
@@ -34,6 +36,9 @@ export async function Reviews({ group, members, meId }: { group: Group; members:
     db.select().from(reviews).where(and(eq(reviews.groupId, group.id), eq(reviews.revieweeId, meId))),
   ]);
   const others = members.filter((m) => m.id !== meId);
+  // 署名评价的人可能已退出小组，所以从全部同学里找昵称
+  const all = localizeNames(await db.select().from(students), locale);
+  const tr = await getTranslator(received.map((x) => x.comment), locale);
 
   return (
     <section className="card space-y-4">
@@ -59,6 +64,15 @@ export async function Reviews({ group, members, meId }: { group: Group; members:
                 </div>
               ))}
               <input name="comment" defaultValue={mine?.comment} className="input" placeholder={r.commentPlaceholder} />
+              <label className="flex items-center gap-2 text-xs text-muted">
+                <input
+                  type="checkbox"
+                  name="anonymous"
+                  defaultChecked={mine?.anonymous ?? true}
+                  className="h-4 w-4 accent-[var(--accent)]"
+                />
+                {r.anonymous}
+              </label>
               <SubmitButton pending={r.saving} variant={mine ? "ghost" : "primary"}>
                 {mine ? r.update : r.submit}
               </SubmitButton>
@@ -81,7 +95,9 @@ export async function Reviews({ group, members, meId }: { group: Group; members:
             {received
               .filter((x) => x.comment)
               .map((x, i) => (
-                <li key={i} className="text-muted">“{x.comment}”</li>
+                <li key={i} className="text-muted">
+                  “{tr(x.comment)}” — {x.anonymous ? r.anonymousName : (all.find((m) => m.id === x.reviewerId)?.name ?? r.anonymousName)}
+                </li>
               ))}
           </ul>
         </div>

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { GeminiNotice } from "@/components/gemini-notice";
 import { JoinForm, type JoinLabels } from "@/components/join-form";
 import { getDb } from "@/db";
 import { students } from "@/db/schema";
@@ -90,6 +91,9 @@ export default async function JoinPage() {
         <h1 className="text-2xl font-semibold">{t.join.title}</h1>
         <p className="mt-1 text-sm text-muted">{t.join.subtitle}</p>
       </div>
+      <Suspense>
+        <GeminiNotice />
+      </Suspense>
       <Suspense fallback={<p className="text-muted">{t.common.loading}</p>}>
         <FormWithProfile />
       </Suspense>

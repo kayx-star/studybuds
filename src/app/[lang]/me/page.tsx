@@ -1,20 +1,32 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { findComplements, formGroup, inviteToNewGroup, respondInvite } from "@/app/actions";
 import { logout } from "@/app/auth-actions";
 import { ActionForm } from "@/components/action-form";
+import { GeminiNotice } from "@/components/gemini-notice";
 import { SubmitButton } from "@/components/submit-button";
 import { getDb } from "@/db";
 import { getRatings } from "@/db/queries";
-import { complements, groups, invites, students, type Group, type Invite, type Student } from "@/db/schema";
+import {
+  complements,
+  groups,
+  invites,
+  reviews,
+  students,
+  type Group,
+  type Invite,
+  type Review,
+  type Student,
+} from "@/db/schema";
 import { localePath, type Locale } from "@/i18n/config";
-import { formatDateTime, reasonText, slotList, tagLabel } from "@/i18n/format";
+import { campusLabel, formatDateTime, reasonText, slotList, tagLabel } from "@/i18n/format";
 import { localizeNames } from "@/i18n/names";
 import { getI18n } from "@/i18n/server";
 import type { Dict } from "@/i18n/zh";
-import { geminiEnabled } from "@/lib/gemini";
+import { geminiStatus } from "@/lib/gemini";
 import { complementPool, recommend, type MatchMode } from "@/lib/match";
 import type { Rating } from "@/lib/ratings";
 import { currentStudentId } from "@/lib/session";
@@ -50,6 +62,119 @@ function Pick({ id, invited, t }: { id: string; invited: boolean; t: Dict }) {
   );
 }
 
+/** 展开查看同学的完整介绍和互评分（不含联系方式和评语，评语只给被评价的人看） */
+function ProfileDetails({ s, rating, t, tr }: { s: Student; rating?: Rating; t: Dict; tr: Translate }) {
+  const o = t.options;
+  const tags = [o.paces[s.pace], o.modes[s.mode], o.goals[s.goal], ...s.tags.map((tag) => tagLabel(t, tag))];
+  return (
+    <details className="text-sm">
+      <summary className="cursor-pointer text-xs text-accent">{t.me.details}</summary>
+      <div className="mt-2 space-y-1.5 rounded-xl bg-accent-soft/40 p-3">
+        <p>
+          <span className="text-muted">{t.me.bio}</span>
+          {s.bio ? tr(s.bio) : <span className="text-muted">{t.me.noBio}</span>}
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {tags.map((x) => (
+            <span key={x} className="chip">{x}</span>
+          ))}
+        </div>
+        {s.campus && (
+          <p>
+            <span className="text-muted">{t.me.campusLabel}</span>
+            {campusLabel(t, s.campus)}
+          </p>
+        )}
+        {s.personality && (
+          <p>
+            <span className="text-muted">{t.me.personalityLabel}</span>
+            {o.personalities[s.personality]}
+          </p>
+        )}
+        {s.strong && (
+          <p>
+            <span className="text-muted">{t.me.strong}</span>
+            {tr(s.strong)}
+          </p>
+        )}
+        {s.weak && (
+          <p>
+            <span className="text-muted">{t.me.weak}</span>
+            {tr(s.weak)}
+          </p>
+        )}
+        <p>
+          <span className="text-muted">{t.me.ratingsLabel}</span>
+          {rating ? (
+            <>
+              {t.reviews.reliability} {rating.reliability.toFixed(1)}★ · {t.reviews.contribution}{" "}
+              {rating.contribution.toFixed(1)}★ · {t.reviews.communication} {rating.communication.toFixed(1)}★ (
+              {t.me.ratingTitle(rating.count)})
+            </>
+          ) : (
+            t.me.noRating
+          )}
+        </p>
+      </div>
+    </details>
+  );
+}
+
+/** 我收到的所有评价：平均分 + 每条评语（匿名或署名） */
+function MyReviews({
+  list,
+  rating,
+  nameOf,
+  groupName,
+  t,
+  tr,
+  locale,
+}: {
+  list: Review[];
+  rating?: Rating;
+  nameOf: (id: string) => string;
+  groupName: (id: string) => string;
+  t: Dict;
+  tr: Translate;
+  locale: Locale;
+}) {
+  const r = t.reviews;
+  return (
+    <section className="card space-y-3">
+      <h2 className="font-semibold">{t.me.myReviewsTitle}</h2>
+      {!rating ? (
+        <p className="text-sm text-muted">{t.me.noReviews}</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+            <span className="font-medium text-amber-600">{t.me.myRating(rating.avg.toFixed(1), rating.count)}</span>
+            <span>{r.reliability} <b>{rating.reliability.toFixed(1)}</b>★</span>
+            <span>{r.contribution} <b>{rating.contribution.toFixed(1)}</b>★</span>
+            <span>{r.communication} <b>{rating.communication.toFixed(1)}</b>★</span>
+          </div>
+          <ul className="divide-y divide-line">
+            {list.map((x) => (
+              <li key={x.groupId + x.reviewerId} className="py-2 text-sm">
+                <div className="text-amber-600">
+                  {"★".repeat(Math.round((x.reliability + x.contribution + x.communication) / 3))}
+                </div>
+                {x.comment && <p>“{tr(x.comment)}”</p>}
+                <p className="text-xs text-muted">
+                  {t.me.reviewMeta(
+                    x.anonymous ? r.anonymousName : nameOf(x.reviewerId),
+                    groupName(x.groupId),
+                    formatDateTime(locale, x.createdAt),
+                  )}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
 /** 推荐卡片外包一层表单：勾选后一起发邀请 */
 function InviteForm({ course, t, children }: { course: string; t: Dict; children: React.ReactNode }) {
   return (
@@ -73,13 +198,17 @@ function Stars({ rating, t }: { rating?: Rating; t: Dict }) {
   );
 }
 
+/** 配置了 Gemini 但额度用完时，在按钮上标注“普通版” */
+const basicSuffix = (t: Dict) => (geminiStatus().enabled ? t.gemini.basic : "");
+
 function GroupButton({ course, mode, size, t }: { course: string; mode: MatchMode; size: number; t: Dict }) {
+  const { ready } = geminiStatus();
   return (
     <form action={formGroup}>
       <input type="hidden" name="course" value={course} />
       <input type="hidden" name="mode" value={mode} />
-      <SubmitButton pending={geminiEnabled ? t.me.formingAi : t.me.forming}>
-        {geminiEnabled ? t.me.formGroupAi(size) : t.me.formGroup(size)}
+      <SubmitButton pending={ready ? t.me.formingAi : t.me.forming}>
+        {ready ? t.me.formGroupAi(size) : t.me.formGroup(size) + basicSuffix(t)}
       </SubmitButton>
     </form>
   );
@@ -104,12 +233,12 @@ function SimilarCourse({ me, all, course, ratings, t, invitedIds, tr }: Ctx) {
         <InviteForm course={course} t={t}>
         <div className="grid gap-3 sm:grid-cols-2">
           {matches.map((m) => (
-            <label key={m.student.id} className="card space-y-2 cursor-pointer has-[:checked]:border-accent">
+            <div key={m.student.id} className="card space-y-2 has-[:checked]:border-accent">
               <div className="flex items-start justify-between gap-2">
-                <span className="flex items-center gap-2 font-medium">
+                <label className="flex cursor-pointer items-center gap-2 font-medium">
                   <Pick id={m.student.id} invited={invitedIds.has(m.student.id)} t={t} />
                   {m.student.name} <Stars rating={ratings.get(m.student.id)} t={t} />
-                </span>
+                </label>
                 <Score score={m.score} t={t} />
               </div>
               {m.student.aiSummary && <p className="text-xs text-muted">{tr(m.student.aiSummary)}</p>}
@@ -118,7 +247,8 @@ function SimilarCourse({ me, all, course, ratings, t, invitedIds, tr }: Ctx) {
                   <li key={r.kind}>· {reasonText(t, r)}</li>
                 ))}
               </ul>
-            </label>
+              <ProfileDetails s={m.student} rating={ratings.get(m.student.id)} t={t} tr={tr} />
+            </div>
           ))}
         </div>
         </InviteForm>
@@ -151,7 +281,7 @@ async function ComplementCourse({ me, all, course, ratings, t, locale, invitedId
             <form action={findComplements}>
               <input type="hidden" name="course" value={course} />
               <SubmitButton pending={t.me.analyzing} variant={cached ? "ghost" : "primary"}>
-                {cached ? t.me.reanalyze : geminiEnabled ? t.me.findComplementAi : t.me.findComplement}
+                {cached ? t.me.reanalyze : geminiStatus().ready ? t.me.findComplementAi : t.me.findComplement + basicSuffix(t)}
               </SubmitButton>
             </form>
             {cached && <GroupButton course={course} mode="complement" size={me.groupSize} t={t} />}
@@ -168,12 +298,12 @@ async function ComplementCourse({ me, all, course, ratings, t, locale, invitedId
           {picks.map((p) => {
             const s = byId.get(p.id)!;
             return (
-              <label key={p.id} className="card space-y-2 cursor-pointer has-[:checked]:border-accent">
+              <div key={p.id} className="card space-y-2 has-[:checked]:border-accent">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="flex items-center gap-2 font-medium">
+                  <label className="flex cursor-pointer items-center gap-2 font-medium">
                     <Pick id={s.id} invited={invitedIds.has(s.id)} t={t} />
                     {s.name} <Stars rating={ratings.get(s.id)} t={t} />
-                  </span>
+                  </label>
                   <Score score={p.score} t={t} />
                 </div>
                 <p className="text-sm">{trReason(p.reason)}</p>
@@ -181,7 +311,8 @@ async function ComplementCourse({ me, all, course, ratings, t, locale, invitedId
                   {s.strong && <div>{t.me.strong}{tr(s.strong)}</div>}
                   {s.weak && <div>{t.me.weak}{tr(s.weak)}</div>}
                 </div>
-              </label>
+                <ProfileDetails s={s} rating={ratings.get(s.id)} t={t} tr={tr} />
+              </div>
             );
           })}
         </div>
@@ -239,16 +370,18 @@ function ReceivedInvites({
 }
 
 async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
+  await connection(); // 下面会读当前时间（Gemini 额度状态），需先声明为请求时渲染
   const [{ locale, t }, { mode: modeParam }, sid] = await Promise.all([getI18n(), searchParams, currentStudentId()]);
   const mode: MatchMode = modeParam === "complement" ? "complement" : "similar";
   const to = (path: string) => localePath(locale, path);
   if (!sid) redirect(to("/login?next=/me"));
   const db = await getDb();
-  const [all, allGroups, ratings, pendingInvites] = await Promise.all([
+  const [all, allGroups, ratings, pendingInvites, myReviews] = await Promise.all([
     db.select().from(students).then((list) => localizeNames(list, locale)),
     db.select().from(groups),
     getRatings(),
     db.select().from(invites).where(eq(invites.status, "pending")),
+    db.select().from(reviews).where(eq(reviews.revieweeId, sid)).orderBy(desc(reviews.createdAt)),
   ]);
   const me = all.find((s) => s.id === sid);
   if (!me) redirect(to("/join"));
@@ -270,7 +403,9 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
     [
       ...me.courses,
       ...shownGroups.flatMap((g) => [g.name, g.course]),
-      ...classmates.flatMap((s) => [s.aiSummary, s.strong, s.weak]),
+      ...classmates.flatMap((s) => [s.aiSummary, s.strong, s.weak, s.bio]),
+      ...myReviews.map((r) => r.comment),
+      ...myReviews.map((r) => groupById.get(r.groupId)?.name),
     ],
     locale,
   );
@@ -290,6 +425,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
   const o = t.options;
   return (
     <div className="space-y-8">
+      <GeminiNotice />
       <section className="card flex flex-wrap items-start gap-4">
         <div className="flex-1 min-w-60">
           <h1 className="text-xl font-semibold">
@@ -320,6 +456,16 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
         </div>
       </section>
 
+      <MyReviews
+        list={myReviews}
+        rating={myRating}
+        nameOf={nameOf}
+        groupName={(id) => tr(groupById.get(id)?.name) || "—"}
+        t={t}
+        tr={tr}
+        locale={locale}
+      />
+
       {received.length > 0 && (
         <ReceivedInvites invites={received} groupById={groupById} nameOf={nameOf} t={t} locale={locale} tr={tr} />
       )}
@@ -333,7 +479,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
                 <div className="text-xs text-muted">{tr(g.course)}</div>
                 <div className="font-medium">{tr(g.name)}</div>
                 <div className="mt-1 text-xs text-muted">
-                  {t.me.groupMeta(g.memberIds.length, slotList(t, g.meetingSlots.slice(0, 3)))}
+                  {t.me.groupMeta(g.memberIds.length, slotList(t, g.meetingSlots.slice(0, 3)) || t.group.noCommonSlots)}
                 </div>
               </Link>
             ))}
@@ -367,7 +513,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
         </section>
       )}
 
-      {!geminiEnabled && <p className="text-xs text-muted">{t.common.noGemini}</p>}
+      {!geminiStatus().enabled && <p className="text-xs text-muted">{t.common.noGemini}</p>}
     </div>
   );
 }

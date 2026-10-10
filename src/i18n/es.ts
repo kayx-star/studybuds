@@ -219,6 +219,16 @@ export const es: Dict = {
       noneSelected: "Marca al menos a un compañero",
       tooMany: (n) => `Puedes invitar como máximo a ${n} compañeros a la vez`,
     },
+    myReviewsTitle: "⭐ Valoraciones que he recibido",
+    noReviews: "Aún no tienes valoraciones. Después de estudiar juntos, los miembros del grupo pueden valorarte en la página del grupo.",
+    reviewMeta: (who, group, when) => `${who} · ${group} · ${when}`,
+    details: "Ver perfil completo",
+    bio: "Sobre mí: ",
+    noBio: "Todavía no ha escrito una presentación.",
+    campusLabel: "Campus: ",
+    personalityLabel: "Personalidad: ",
+    ratingsLabel: "Valoraciones: ",
+    noRating: "Sin valoraciones",
     loadingMatches: "Calculando coincidencias…",
     ratingTitle: (count) => s(count, "valoración", "valoraciones"),
   },
@@ -345,6 +355,8 @@ export const es: Dict = {
     contribution: "Aportación",
     communication: "Comunicación",
     reviewed: "Valorado",
+    anonymous: "Valorar de forma anónima (desmárcalo para mostrar tu apodo)",
+    anonymousName: "Compañero anónimo",
     commentPlaceholder: "Comentario anónimo (opcional)",
     submit: "Enviar valoración",
     update: "Actualizar valoración",
@@ -395,6 +407,14 @@ Código del grupo exportado desde Compañeros de Estudio.
 3. Instala la extensión recomendada «Extension Pack for Java» cuando te lo pida
 4. Abre los archivos .java de src: los errores de compilación aparecen en el panel Problemas; pulsa «Run» encima del método main para ejecutarlo
 `,
+  },
+  gemini: {
+    quotaBanner: (wait) =>
+      `⚠️ Se ha agotado la cuota gratuita diaria de Gemini. Los grupos y la búsqueda complementaria usan por ahora la versión básica (por reglas), y los cuestionarios y el análisis de perfiles con IA están en pausa. Se reanudará en unos ${wait}.`,
+    translateBanner: (wait) => `⚠️ Se ha agotado la cuota de traducción de Gemini, así que parte del contenido se muestra en su idioma original. Se reanudará en unos ${wait}.`,
+    duration: (h, m) => (h > 0 ? `${h} h ${m} min` : `${Math.max(m, 1)} min`),
+    basic: " (básico)",
+    quizPaused: (wait) => `Se ha agotado la cuota de Gemini, así que los cuestionarios con IA están en pausa. Se reanudará en unos ${wait}.`,
   },
   errors: {
     notMember: "Solo los miembros del grupo pueden hacer esto",

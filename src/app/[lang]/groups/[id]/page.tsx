@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { GeminiNotice } from "@/components/gemini-notice";
 import { CodeSpace } from "@/components/group/code-space";
 import { InvitePanel } from "@/components/group/invites";
 import { LeaveGroupButton } from "@/components/group/leave-button";
@@ -42,6 +43,7 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="space-y-6">
+      <GeminiNotice />
       <div>
         <Link href={localePath(locale, "/me")} className="text-sm text-muted hover:text-fg">{t.common.back}</Link>
         <div className="mt-3 text-sm text-muted">{tr(group.course)}</div>

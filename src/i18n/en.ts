@@ -219,6 +219,16 @@ export const en: Dict = {
       noneSelected: "Please select at least one classmate",
       tooMany: (n) => `You can invite at most ${n} classmates at a time`,
     },
+    myReviewsTitle: "⭐ Reviews about me",
+    noReviews: "No reviews yet. After studying together, group members can rate you on the group page.",
+    reviewMeta: (who, group, when) => `${who} · ${group} · ${when}`,
+    details: "View full profile",
+    bio: "About: ",
+    noBio: "They haven't written an intro yet.",
+    campusLabel: "Campus: ",
+    personalityLabel: "Personality: ",
+    ratingsLabel: "Ratings: ",
+    noRating: "No ratings yet",
     loadingMatches: "Calculating matches…",
     ratingTitle: (count) => s(count, "review", "reviews"),
   },
@@ -344,6 +354,8 @@ export const en: Dict = {
     contribution: "Contribution",
     communication: "Communication",
     reviewed: "Reviewed",
+    anonymous: "Post anonymously (untick to show your nickname)",
+    anonymousName: "Anonymous classmate",
     commentPlaceholder: "Anonymous comment (optional)",
     submit: "Submit review",
     update: "Update review",
@@ -394,6 +406,14 @@ Group code exported from Study Buddy.
 3. Install the recommended “Extension Pack for Java” when prompted
 4. Open the .java files in src: compile errors show up in the Problems panel; click “Run” above the main method to run it
 `,
+  },
+  gemini: {
+    quotaBanner: (wait) =>
+      `⚠️ Gemini's free quota for today is used up. Grouping and complementary matching are using the basic version (rule-based) for now, and AI quizzes and profile analysis are paused. Service resumes in about ${wait}.`,
+    translateBanner: (wait) => `⚠️ Gemini's translation quota is used up, so some content is shown in its original language. Resumes in about ${wait}.`,
+    duration: (h, m) => (h > 0 ? `${h} h ${m} min` : `${Math.max(m, 1)} min`),
+    basic: " (basic)",
+    quizPaused: (wait) => `Gemini's quota is used up, so AI quizzes are paused. Resumes in about ${wait}.`,
   },
   errors: {
     notMember: "Only group members can do this",

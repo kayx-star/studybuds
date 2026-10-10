@@ -1,5 +1,6 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import Link from "next/link";
+import { connection } from "next/server";
 import { createQuiz } from "@/app/group-actions";
 import { ActionForm } from "@/components/action-form";
 import { SubmitButton } from "@/components/submit-button";
@@ -8,12 +9,14 @@ import { quizAttempts, quizzes, type Group, type Student } from "@/db/schema";
 import { localePath } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
 import { DIFFICULTIES } from "@/lib/constants";
-import { geminiEnabled } from "@/lib/gemini";
+import { waitText } from "@/components/gemini-notice";
+import { geminiStatus } from "@/lib/gemini";
 import { getTranslator } from "@/lib/translate";
 
 type DiffKey = (typeof DIFFICULTIES)[number]["key"];
 
 export async function Quizzes({ group, members, meId }: { group: Group; members: Student[]; meId: string | null }) {
+  await connection(); // geminiStatus 会读当前时间
   const { locale, t } = await getI18n();
   const q = t.quiz;
   const db = await getDb();
@@ -22,6 +25,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
     ? await db.select().from(quizAttempts).where(inArray(quizAttempts.quizId, list.map((x) => x.id)))
     : [];
   const isMember = meId !== null && group.memberIds.includes(meId);
+  const gemini = geminiStatus();
   const tr = await getTranslator([group.course, ...list.map((x) => x.topic)], locale);
 
   // 小组总榜：累计答对题数
@@ -91,7 +95,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
       )}
 
       {isMember &&
-        (geminiEnabled ? (
+        (gemini.ready ? (
           <details>
             <summary className="cursor-pointer text-sm text-accent">{q.newQuiz}</summary>
             <ActionForm action={createQuiz} className="mt-3 space-y-3">
@@ -114,7 +118,9 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
             </ActionForm>
           </details>
         ) : (
-          <p className="text-xs text-muted">{q.needGemini}</p>
+          <p className="text-xs text-muted">
+            {gemini.mainPausedUntil ? t.gemini.quizPaused(waitText(t, gemini.mainPausedUntil)) : q.needGemini}
+          </p>
         ))}
     </section>
   );
