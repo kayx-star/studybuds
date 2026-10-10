@@ -1,40 +1,86 @@
-# 学习搭子
+# 📚 Study Buddy · 学习搭子
 
-按课程、每周空闲时间、学习风格匹配同学，组成学习小组；Gemini 负责理解自我介绍、挑选组员并生成学习计划。
+**Find study partners at Rutgers by subject, course section, schedule and study style — then study together with AI help.**
+按科目、具体课程班级（Index）、空闲时间和学习风格匹配 Rutgers 同学，组成学习小组，并用 Gemini 辅助学习。
 
-## 技术栈
-- Next.js 16（App Router + Server Actions）+ TypeScript + Tailwind CSS 4
-- SQLite（libSQL）+ Drizzle ORM：本地是 `local.db` 文件，上线可直接切换到 Turso
-- Gemini（`@google/genai`）：未配置 Key 时自动回退到规则算法
+Available in **中文 / English / Español**.
 
-## 本地运行
-```bash
-npm install
-cp .env.example .env.local   # 填入 GEMINI_API_KEY
-npm run seed                 # 可选：生成 20 位示例同学（账号 demo-0@example.com ~ demo-19@example.com，密码 demo1234）
-npm run dev                  # 打开 http://localhost:3000
+---
+
+## ✨ Features
+
+| | |
+|---|---|
+| 🎯 **Smart matching** | 0–100 match score from shared free time, pace, online/in-person mode, goals, study style, campus, personality and peer ratings. Same course **+10**, same section (Index) **+8**. Gender preference is a two-way hard filter. |
+| 🏫 **Rutgers subjects & courses** | Pick from all 166 NB undergraduate subjects; optionally search & autocomplete 2,599 Fall 2026 courses by number (`198:111`), title, or 5-digit index (`11389`). |
+| 🤝 **Complementary matching** | Gemini finds classmates who are strong where you're weak — and vice versa. |
+| ✉️ **Invite-based groups** | Pick classmates (or let Gemini pick) and send invites; members join only after accepting. Contacts are visible to members only. |
+| 📅 **Study sessions** | Suggested times from everyone's shared free slots, RSVP, export to calendar (`.ics`). |
+| 🏆 **AI quizzes** | Gemini writes quizzes from a chapter or your notes; wrong answers show the concept you missed and why. Group leaderboard. |
+| 💻 **Code together** | Shared files in a Monaco (VS Code) editor with live sync and conflict detection; download as a VS Code project. |
+| ⭐ **Peer reviews** | 1–5 star ratings (reliability / contribution / communication), anonymous or named. Ratings feed back into matching. |
+| 👥 **Friends & chat** | Search classmates, friend requests, 1-on-1 messages with emoji and on-demand translation. |
+| 🌐 **Three languages** | UI, user content and AI output are shown in the selected language (translated via Gemini and cached). |
+| 📱 **Installable (PWA)** | Add to home screen on iPhone/Android for an app-like experience. |
+| 🛟 **Graceful fallback** | When Gemini is unavailable or out of quota, matching and grouping fall back to a rule-based algorithm and users are told. |
+
+## 🛠 Built with
+
+- **Next.js 16** (App Router, Server Actions, Cache Components) + **TypeScript** + **Tailwind CSS 4**
+- **SQLite / libSQL** + **Drizzle ORM** (local file; switch to Turso for the cloud)
+- **Google Gemini API** (`@google/genai`) — profile analysis, grouping, complementary matching, quizzes, translation
+- **Monaco Editor** for collaborative code, **pinyin-pro** for name romanization, **fflate** for project export
+- Course data from the public **Rutgers Schedule of Classes** API
+
+## 🏗 How it works
+
+```
+Browser ──► Next.js (Server Components + Server Actions)
+              ├── src/lib/match.ts       match scoring & greedy grouping (rule-based)
+              ├── src/lib/gemini.ts      Gemini prompts, retries, quota pause & fallback
+              ├── src/lib/translate.ts   3-language translation cache (translations table)
+              ├── src/lib/courses.ts     Rutgers course search / autocomplete
+              ├── src/lib/session.ts     auth: scrypt passwords, hashed session tokens
+              └── src/db/                Drizzle schema → SQLite (local.db) / Turso
 ```
 
-## 匹配逻辑（src/lib/match.ts）
-同一门课的同学之间打分（0–100）：共同空闲时间 40%、节奏 15%、线上/线下 15%、目标 10%、风格标签 15%、期望人数 5%；没有共同时间的大幅降分。
-组队时把前 8 名候选交给 Gemini 挑选组员（`src/lib/gemini.ts`），并校验所有人仍有共同时间，否则回退到贪心算法。
+Security notes: passwords are hashed with scrypt; session and password-reset tokens are stored as SHA-256 hashes; contact info is only visible to group members; friend search never reveals emails; login is rate-limited.
 
-## 功能
-- **匹配度**：0–100 分，综合共同空闲时间、节奏、线上/线下、目标、风格、校区、性格与互评；性别偏好为双向硬性条件（`src/lib/match.ts`）
-- **邀请制组队**：手动勾选或 Gemini 挑人后发出邀请，被邀请人接受才加入小组、才能看到联系方式
-- **代码协作**：小组共享文件 + Monaco（VS Code 同款）编辑器，4 秒轮询同步，保存时乐观锁防覆盖；可下载为 VS Code 项目（含 Java 插件推荐）
-- **答题诊断**：每题标注知识点与各错误选项对应的误解，交卷后汇总需要复习的知识点
-- **内容翻译**：用户写的内容与 AI 生成内容由 Gemini 翻译为三种语言并缓存在 `translations` 表（`src/lib/translate.ts`），昵称不翻译
-- **多语言**：中文 / English / Español。网址带语言前缀（`/zh/me`、`/en/me`、`/es/me`），`src/proxy.ts` 按 cookie 或浏览器语言自动跳转；字典在 `src/i18n/`（`zh.ts` 定义结构，`en.ts`、`es.ts` 由类型检查保证键齐全）；Gemini 按当前语言输出
-- **登录**：邮箱 + 密码（scrypt 加盐哈希），会话令牌只存 SHA-256，30 天有效；同一邮箱连续输错 5 次锁 15 分钟（内存版，多实例部署需改存数据库）
-- **相似匹配 / 互补匹配**：互补模式由 Gemini 分析“你擅长 TA 的弱项、TA 擅长你的弱项”，结果缓存在 `complements` 表
-- **约自习**：按共同空闲时间推荐日期，组员报名，可导出 .ics 到日历
-- **AI 出题比拼**：Gemini 按章节/笔记出单选题，每人作答一次，有单次排名与小组总榜
-- **搭子互评**：守时靠谱/学习贡献/沟通友好 1–5 星，平均分显示在匹配卡片并计入匹配分（±6 分），评语匿名
+## 🚀 Run locally
 
-## 目录
-- `src/app/join` 填写/编辑资料
-- `src/app/me` 推荐搭子 + 一键组队
-- `src/app/groups/[id]` 小组详情：成员、约自习、出题比拼、学习计划、互评（联系方式仅组员可见）
-- `src/app/quizzes/[id]` 答题与解析
-- `src/app/group-actions.ts` 小组内的所有操作（均校验组员身份）
+Requires Node.js 20+.
+
+```bash
+npm install
+cp .env.example .env.local     # add your GEMINI_API_KEY (free at https://aistudio.google.com/apikey)
+npm run seed                   # optional: 20 demo students (demo-0@example.com … demo-19@example.com, password demo1234)
+npm run dev                    # http://localhost:3000
+```
+
+Environment variables (see `.env.example`): `GEMINI_API_KEY`, optional `GEMINI_MODEL`, `GEMINI_TRANSLATE_MODEL`, `DATABASE_URL` / `DATABASE_AUTH_TOKEN` (Turso), SMTP settings for password-reset email, and `APP_URL`.
+
+## 📁 Project structure
+
+```
+src/app/[lang]/        pages (zh / en / es): join, me, groups, quizzes, messages, friends, login…
+src/app/*actions.ts    server actions (every group action checks membership)
+src/components/        UI: subject & course pickers, chat, code editor, emoji picker…
+src/i18n/              dictionaries (zh.ts defines the shape; en/es are type-checked against it)
+src/lib/               matching, Gemini, translation, courses, sessions, mail
+src/data/              Rutgers NB Fall 2026 undergraduate courses (compact JSON)
+```
+
+---
+
+## 中文简介
+
+学习搭子帮 Rutgers 同学找到**同课、同时间、同节奏**的学习伙伴：
+
+- **匹配**：选择科目（Subject），可选填具体课程或 Index 班级；同一门课、同一个班的同学优先推荐，并给出推荐理由。
+- **组队**：手动勾选或让 Gemini 挑人后发邀请，对方接受才入组。
+- **小组内**：约自习（导出日历）、AI 出题与知识点诊断、代码协作（VS Code 同款编辑器）、学习计划、搭子互评。
+- **社交**：好友搜索与申请、私信（表情、按需翻译）。
+- **三语**：中文 / English / Español，用户内容与 AI 内容也会翻译成当前语言。
+- **可安装**：手机浏览器“添加到主屏幕”即可像 App 一样使用。
+
+> This project was developed with the help of AI coding tools (Claude Code).
