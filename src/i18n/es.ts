@@ -64,6 +64,10 @@ export const es: Dict = {
     myGroups: "Mis grupos",
     stats: (students, groups) =>
       `${s(students, "estudiante se ha unido", "estudiantes se han unido")} y ${s(groups, "grupo formado", "grupos formados")}`,
+    installTitle: "📱 Instálala en tu móvil",
+    installIntro: "Sin descargas: añade esta web a tu pantalla de inicio y se abrirá a pantalla completa como una app.",
+    installIos: "iPhone: abre esta web en Safari → pulsa Compartir → «Añadir a pantalla de inicio»",
+    installAndroid: "Android: abre esta web en Chrome → pulsa ⋮ arriba a la derecha → «Instalar aplicación» o «Añadir a pantalla de inicio»",
     step: (n) => `Paso ${n}`,
     steps: [
       { title: "Completa tu perfil", body: "Asignaturas, tiempo libre semanal, ritmo y estilo, y una breve presentación." },

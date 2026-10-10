@@ -64,6 +64,10 @@ export const en: Dict = {
     myGroups: "My groups",
     stats: (students, groups) =>
       `${s(students, "student has", "students have")} joined and formed ${s(groups, "study group", "study groups")}`,
+    installTitle: "📱 Install on your phone",
+    installIntro: "No download needed — add this site to your home screen and it opens full-screen like an app.",
+    installIos: "iPhone: open this site in Safari → tap the Share button → “Add to Home Screen”",
+    installAndroid: "Android: open this site in Chrome → tap ⋮ at the top right → “Install app” or “Add to Home screen”",
     step: (n) => `Step ${n}`,
     steps: [
       { title: "Build your profile", body: "Your courses, weekly free time, pace and style, plus a short intro." },

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -11,9 +11,17 @@ export async function generateStaticParams() {
   return LOCALES.map((lang) => ({ lang }));
 }
 
+export const viewport: Viewport = { themeColor: "#5b5bd6" };
+
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
-  return { title: t.meta.title, description: t.meta.description };
+  return {
+    title: t.meta.title,
+    description: t.meta.description,
+    // iPhone “添加到主屏幕”后全屏打开、使用 App 图标
+    appleWebApp: { capable: true, title: t.meta.title, statusBarStyle: "default" },
+    icons: { apple: "/icons/180.png" },
+  };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {

@@ -38,6 +38,15 @@ export default async function Home() {
         </Suspense>
       </section>
 
+      <section className="card space-y-2">
+        <h2 className="font-semibold">{t.home.installTitle}</h2>
+        <p className="text-sm text-muted">{t.home.installIntro}</p>
+        <ul className="space-y-1 text-sm">
+          <li>🍎 {t.home.installIos}</li>
+          <li>🤖 {t.home.installAndroid}</li>
+        </ul>
+      </section>
+
       <section className="grid gap-4 sm:grid-cols-3">
         {t.home.steps.map((s, i) => (
           <div key={s.title} className="card">

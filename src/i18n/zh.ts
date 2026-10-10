@@ -62,6 +62,10 @@ export const zh = {
     start: "开始匹配",
     myGroups: "查看我的小组",
     stats: (students: number, groups: number) => `已有 ${students} 位同学加入，组成了 ${groups} 个学习小组`,
+    installTitle: "📱 安装到手机",
+    installIntro: "不用下载，直接把网站添加到手机主屏幕，就能像 App 一样全屏打开。",
+    installIos: "iPhone：用 Safari 打开本网站 → 点底部“分享”按钮 → “添加到主屏幕”",
+    installAndroid: "安卓：用 Chrome 打开本网站 → 点右上角 ⋮ → “安装应用”或“添加到主屏幕”",
     step: (n: number) => `第 ${n} 步`,
     steps: [
       { title: "填写资料", body: "在学课程、每周空闲时间、学习节奏和风格，再写几句自我介绍。" },
