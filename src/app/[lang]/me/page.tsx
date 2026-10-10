@@ -31,6 +31,7 @@ import { complementPool, recommend, type MatchMode } from "@/lib/match";
 import type { Rating } from "@/lib/ratings";
 import { currentStudentId } from "@/lib/session";
 import { getTranslator, type Translate } from "@/lib/translate";
+import { subjectLabel } from "@/lib/subjects";
 
 type Ctx = {
   me: Student;
@@ -227,7 +228,7 @@ function SimilarCourse({ me, all, course, ratings, t, locale, invitedIds, tr }: 
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-semibold">{tr(course)}</h2>
+        <h2 className="text-lg font-semibold">{subjectLabel(course, locale)}</h2>
         <span className="text-sm text-muted">{t.me.recommended(matches.length)}</span>
         {matches.length > 0 && (
           <div className="ml-auto">
@@ -283,7 +284,7 @@ async function ComplementCourse({ me, all, course, ratings, t, locale, invitedId
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-semibold">{tr(course)}</h2>
+        <h2 className="text-lg font-semibold">{subjectLabel(course, locale)}</h2>
         <span className="text-sm text-muted">{t.me.available(pool.length)}</span>
         {pool.length > 0 && (
           <div className="ml-auto flex flex-wrap gap-2">
@@ -356,7 +357,7 @@ function ReceivedInvites({
         return (
           <div key={i.id} className="card flex flex-wrap items-center gap-3 border-accent">
             <div className="flex-1 min-w-56">
-              <div className="font-medium">{t.me.inviteFrom(nameOf(i.inviterId), tr(g.course))}</div>
+              <div className="font-medium">{t.me.inviteFrom(nameOf(i.inviterId), subjectLabel(g.course, locale))}</div>
               <div className="text-sm text-muted">
                 {tr(g.name)} · {t.me.groupMeta(g.memberIds.length, slotList(t, g.meetingSlots.slice(0, 3)) || t.group.noCommonSlots)}
               </div>
@@ -413,7 +414,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
   const tr = await getTranslator(
     [
       ...me.courses,
-      ...shownGroups.flatMap((g) => [g.name, g.course]),
+      ...shownGroups.map((g) => g.name),
       ...classmates.flatMap((s) => [s.aiSummary, s.strong, s.weak, s.bio]),
       ...myReviews.map((r) => r.comment),
       ...myReviews.map((r) => groupById.get(r.groupId)?.name),
@@ -487,7 +488,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
           <div className="grid gap-3 sm:grid-cols-2">
             {myGroups.map((g) => (
               <Link key={g.id} href={to(`/groups/${g.id}`)} className="card hover:border-accent">
-                <div className="text-xs text-muted">{tr(g.course)}</div>
+                <div className="text-xs text-muted">{subjectLabel(g.course, locale)}</div>
                 <div className="font-medium">{tr(g.name)}</div>
                 <div className="mt-1 text-xs text-muted">
                   {t.me.groupMeta(g.memberIds.length, slotList(t, g.meetingSlots.slice(0, 3)) || t.group.noCommonSlots)}

@@ -5,7 +5,7 @@ import { GeminiNotice } from "@/components/gemini-notice";
 import { JoinForm, type JoinLabels } from "@/components/join-form";
 import { getDb } from "@/db";
 import { students } from "@/db/schema";
-import { localePath } from "@/i18n/config";
+import { localePath, type Locale } from "@/i18n/config";
 import { getI18n } from "@/i18n/server";
 import type { Dict } from "@/i18n/zh";
 import {
@@ -22,8 +22,9 @@ import {
   STYLE_TAGS,
 } from "@/lib/constants";
 import { currentStudentId } from "@/lib/session";
+import { SUBJECTS, subjectLabel } from "@/lib/subjects";
 
-function labels(t: Dict): JoinLabels {
+function labels(t: Dict, locale: Locale): JoinLabels {
   const j = t.join;
   const o = t.options;
   return {
@@ -50,7 +51,14 @@ function labels(t: Dict): JoinLabels {
     save: j.save,
     create: j.create,
     saving: j.saving,
-    coursesSeparator: t.list(["", ""]), // 即该语言的列表分隔符：“、”或“, ”
+    subjects: SUBJECTS.map((s) => ({
+      code: s.code,
+      label: subjectLabel(s.code, locale),
+      search: `${s.en} ${s.zh} ${s.es} ${s.code}`.toLowerCase(),
+    })),
+    subjectNoMatch: j.subjectNoMatch,
+    subjectMax: j.subjectMax,
+    subjectRemove: j.subjectRemove,
     days: DAYS.map((d) => ({ key: d.key, label: o.days[d.key] })),
     periods: PERIODS.map((p) => ({ key: p.key, label: o.periods[p.key] })),
     paces: PACES.map((p) => ({ key: p.key, label: o.paces[p.key] })),
@@ -80,7 +88,7 @@ async function FormWithProfile() {
   if (!sid) redirect(localePath(locale, "/login?next=/join"));
   const db = await getDb();
   const [student] = await db.select().from(students).where(eq(students.id, sid));
-  return <JoinForm student={student ?? null} l={labels(t)} />;
+  return <JoinForm student={student ?? null} l={labels(t, locale)} />;
 }
 
 export default async function JoinPage() {

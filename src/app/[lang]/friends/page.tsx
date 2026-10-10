@@ -12,7 +12,7 @@ import { displayName } from "@/i18n/names";
 import { getI18n } from "@/i18n/server";
 import type { Dict } from "@/i18n/zh";
 import { currentStudentId } from "@/lib/session";
-import { getTranslator, type Translate } from "@/lib/translate";
+import { subjectLabel } from "@/lib/subjects";
 
 type Relation = "none" | "friend" | "outgoing" | "incoming";
 
@@ -21,13 +21,11 @@ function PersonRow({
   s,
   relation,
   t,
-  tr,
   locale,
 }: {
   s: Student;
   relation: Relation;
   t: Dict;
-  tr: Translate;
   locale: Locale;
 }) {
   const f = t.friends;
@@ -37,7 +35,7 @@ function PersonRow({
         <div className="font-medium">{displayName(s.name, locale)}</div>
         <div className="text-xs text-muted">
           {f.courses}
-          {t.list(s.courses.map((c) => tr(c)))}
+          {t.list(s.courses.map((c) => subjectLabel(c, locale)))}
           {s.campus && ` · ${campusLabel(t, s.campus)}`}
         </div>
       </div>
@@ -138,12 +136,7 @@ async function FriendsContent({ searchParams }: { searchParams: Promise<{ q?: st
       .slice(0, 20);
   }
 
-  const shown = [...results, ...friends, ...incoming, ...outgoing];
-  const tr = await getTranslator(
-    shown.flatMap((s) => s.courses),
-    locale,
-  );
-  const row = (s: Student) => <PersonRow key={s.id} s={s} relation={relationOf(s.id)} t={t} tr={tr} locale={locale} />;
+  const row = (s: Student) => <PersonRow key={s.id} s={s} relation={relationOf(s.id)} t={t} locale={locale} />;
 
   return (
     <div className="space-y-6">

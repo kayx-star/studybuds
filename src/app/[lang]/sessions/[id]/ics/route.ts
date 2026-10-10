@@ -6,6 +6,7 @@ import { isLocale } from "@/i18n/config";
 import { dictFor } from "@/i18n/dicts";
 import { toIcs } from "@/lib/schedule";
 import { getTranslator } from "@/lib/translate";
+import { subjectLabel } from "@/lib/subjects";
 
 export async function GET(_req: Request, ctx: RouteContext<"/[lang]/sessions/[id]/ics">) {
   const { id, lang } = await ctx.params;
@@ -22,7 +23,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/[lang]/sessions/[id
     date: session.date,
     start: session.start,
     minutes: session.minutes,
-    title: t.sessions.icsTitle(tr(member.group.course), tr(session.topic)),
+    title: t.sessions.icsTitle(subjectLabel(member.group.course, locale), tr(session.topic)),
     place: tr(session.place),
     reminder: t.sessions.icsReminder,
   });

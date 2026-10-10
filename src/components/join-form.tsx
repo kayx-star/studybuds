@@ -3,6 +3,7 @@
 import { startTransition, useActionState } from "react";
 import { saveProfile, type JoinState } from "@/app/actions";
 import type { Student } from "@/db/schema";
+import { SubjectPicker, type SubjectOption } from "./subject-picker";
 
 type Option = { key: string; label: string };
 
@@ -31,7 +32,10 @@ export type JoinLabels = {
   save: string;
   create: string;
   saving: string;
-  coursesSeparator: string;
+  subjects: SubjectOption[];
+  subjectNoMatch: string;
+  subjectMax: string;
+  subjectRemove: string;
   days: Option[];
   periods: Option[];
   paces: Option[];
@@ -118,12 +122,14 @@ export function JoinForm({ student, l }: { student: Student | null; l: JoinLabel
         </div>
         <div className="sm:col-span-2">
           <label className="label" htmlFor="courses">{l.courses}</label>
-          <input
-            id="courses"
-            name="courses"
-            className="input"
-            defaultValue={student?.courses.join(l.coursesSeparator)}
+          <SubjectPicker
+            options={l.subjects}
+            // 旧版自由填写的课程名不在科目表里，不带入选择器
+            initial={(student?.courses ?? []).filter((c) => l.subjects.some((o) => o.code === c))}
             placeholder={l.coursesPlaceholder}
+            noMatch={l.subjectNoMatch}
+            maxReached={l.subjectMax}
+            removeLabel={l.subjectRemove}
           />
           <p className="mt-1 text-xs text-muted">{l.coursesHint}</p>
         </div>

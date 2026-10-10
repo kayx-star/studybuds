@@ -13,6 +13,7 @@ import { getI18n } from "@/i18n/server";
 import { getTranslator, type Translate } from "@/lib/translate";
 import type { Dict } from "@/i18n/zh";
 import type { DIFFICULTIES } from "@/lib/constants";
+import { subjectLabel } from "@/lib/subjects";
 
 type DiffKey = (typeof DIFFICULTIES)[number]["key"];
 
@@ -72,7 +73,6 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
   const total = quiz.questions.length;
   const tr = await getTranslator(
     [
-      ctx.group.course,
       ctx.group.name,
       quiz.topic,
       ...quiz.questions.flatMap((q) => [q.question, q.explanation, q.concept, ...q.options, ...(q.optionNotes ?? [])]),
@@ -88,7 +88,7 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
         <Link href={localePath(locale, `/groups/${quiz.groupId}`)} className="text-sm text-muted hover:text-fg">
           {tq.backTo(tr(ctx.group.name))}
         </Link>
-        <div className="mt-3 text-sm text-muted">{tq.header(tr(ctx.group.course), difficulty, total, author)}</div>
+        <div className="mt-3 text-sm text-muted">{tq.header(subjectLabel(ctx.group.course, locale), difficulty, total, author)}</div>
         <h1 className="text-2xl font-semibold">{tr(quiz.topic)}</h1>
       </div>
 

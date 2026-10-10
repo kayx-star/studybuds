@@ -13,6 +13,7 @@ import {
   labelOf,
   slotLabel,
 } from "./constants";
+import { subjectForPrompt } from "./subjects";
 import type { MatchMode } from "./match";
 import type { Rating } from "./ratings";
 
@@ -152,6 +153,7 @@ export async function planGroup(
   ratings: Map<string, Rating>,
   language: string,
 ): Promise<GroupPlan | null> {
+  course = subjectForPrompt(course);
   const want = me.groupSize - 1;
   const priority =
     mode === "complement"
@@ -200,6 +202,7 @@ export async function rankComplements(
   pool: Student[],
   language: string,
 ): Promise<ComplementPick[] | null> {
+  course = subjectForPrompt(course);
   const result = await askJson<{ picks: ComplementPick[] }>(
     `你是大学课程「${course}」的学习搭子匹配助手，现在做「互补匹配」：
 找出能和发起人互相帮助的同学——对方擅长发起人想补强的内容，发起人也擅长对方想补强的内容最好（双向互补优于单向）。
@@ -249,6 +252,7 @@ export async function generateQuiz(
   difficulty: string,
   language: string,
 ): Promise<QuizQuestion[] | null> {
+  course = subjectForPrompt(course);
   const result = await askJson<{ questions: QuizQuestion[] }>(
     `你是大学课程「${course}」的助教。请围绕「${topic}」出 ${count} 道${labelOf(DIFFICULTIES, difficulty)}难度的单选题，用于学习小组内部比拼。
 要求：每题 4 个选项，只有一个正确答案（answer 为正确选项的下标 0-3）；干扰项要有迷惑性；

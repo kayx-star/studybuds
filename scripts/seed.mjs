@@ -9,17 +9,18 @@ await client.executeMultiple(schema.match(/export const DDL = `([\s\S]*?)`;/)[1]
 for (const [, sql] of schema.matchAll(/"(ALTER TABLE [^"]+)"/g)) await client.execute(sql).catch(() => {});
 
 const NAMES = ["小林", "阿杰", "Momo", "晓雨", "大鹏", "Coco", "子轩", "一一", "老王", "Yuki", "思远", "安安", "Leo", "糖糖", "浩然", "七七", "阿诚", "Nina", "可乐", "北北"];
-const COURSES = ["高等数学", "CS101", "大学英语", "线性代数", "数据结构"];
+// 科目代码，对应 src/lib/subjects.ts：数学、计算机、英语写作、机械航空、统计
+const COURSES = ["640", "198", "355", "650", "960"];
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const PERIODS = ["am", "pm", "eve"];
 const TAGS = ["讨论交流", "安静自习", "刷题练习", "互相讲解", "笔记整理", "项目实践", "打卡监督", "考前冲刺"];
 // 每门课的知识点，用来生成“擅长/想补强”
 const TOPICS = {
-  "高等数学": ["极限", "导数", "积分", "微分方程", "级数"],
-  "CS101": ["循环", "函数", "递归", "指针", "调试"],
-  "大学英语": ["词汇", "听力", "写作", "口语", "阅读"],
-  "线性代数": ["矩阵", "行列式", "特征值", "向量空间"],
-  "数据结构": ["链表", "树", "图", "排序", "动态规划"],
+  "640": ["极限", "导数", "积分", "微分方程", "级数"],
+  "198": ["循环", "函数", "递归", "指针", "链表"],
+  "355": ["词汇", "写作", "论文结构", "引用格式"],
+  "650": ["静力学", "动力学", "热传导", "流体力学"],
+  "960": ["概率", "假设检验", "回归分析", "抽样"],
 };
 const GENDERS = ["male", "female", "female", "male", "nonbinary", "undisclosed"];
 const CAMPUSES = ["busch", "livingston", "college-ave", "cook-douglass"];

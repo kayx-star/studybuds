@@ -36,7 +36,6 @@ import {
   PERSONALITIES,
   PERSONALITY_PREFS,
   STYLE_TAGS,
-  normalizeCourse,
 } from "@/lib/constants";
 import { analyzeBio, planGroup, rankComplements } from "@/lib/gemini";
 import type { FormState } from "@/app/group-actions";
@@ -50,7 +49,8 @@ import {
   type MatchMode,
 } from "@/lib/match";
 import { currentStudentId } from "@/lib/session";
-import { ensureTranslations, getTranslator } from "@/lib/translate";
+import { isSubjectCode, subjectLabel } from "@/lib/subjects";
+import { ensureTranslations } from "@/lib/translate";
 
 const keys = <T extends readonly { key: string }[]>(list: T) =>
   list.map((x) => x.key) as [T[number]["key"], ...T[number]["key"][]];
@@ -59,10 +59,11 @@ const profileSchema = (e: Dict["join"]["errors"]) =>
   z.object({
     name: z.string().trim().min(1, e.name).max(20, e.nameLong),
     contact: z.string().trim().min(1, e.contact).max(50),
+    // 只接受科目表里的代码（如 "198"），去重
     courses: z
-      .string()
-      .transform((s) => [...new Set(s.split(/[,，、;；\n]/).map(normalizeCourse).filter(Boolean))])
-      .pipe(z.array(z.string().max(30)).min(1, e.courses).max(8, e.coursesMany)),
+      .array(z.string())
+      .transform((list) => [...new Set(list.filter(isSubjectCode))])
+      .pipe(z.array(z.string()).min(1, e.courses).max(8, e.coursesMany)),
     slots: z.array(z.enum(ALL_SLOTS)).min(1, e.slots),
     pace: z.enum(keys(PACES), { message: e.pace }),
     mode: z.enum(keys(MODES), { message: e.mode }),
@@ -87,7 +88,7 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
   const parsed = profileSchema(t.join.errors).safeParse({
     name: formData.get("name"),
     contact: formData.get("contact"),
-    courses: formData.get("courses") ?? "",
+    courses: formData.getAll("courses").map(String),
     slots: formData.getAll("slots"),
     pace: formData.get("pace"),
     mode: formData.get("mode"),
@@ -208,7 +209,7 @@ async function createGroupWithInvites(
   const expectedSlots = commonSlots([me, ...invitees]);
   // 默认文案里嵌入的课程名先换成当前语言，避免一句话里夹两种语言
   const { locale } = await getActionI18n();
-  const courseName = (await getTranslator([course], locale))(course);
+  const courseName = subjectLabel(course, locale);
   const id = crypto.randomUUID();
   await db.insert(groups).values({
     id,

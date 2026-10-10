@@ -12,6 +12,7 @@ import { DIFFICULTIES } from "@/lib/constants";
 import { waitText } from "@/components/gemini-notice";
 import { geminiStatus } from "@/lib/gemini";
 import { getTranslator } from "@/lib/translate";
+import { subjectLabel } from "@/lib/subjects";
 
 type DiffKey = (typeof DIFFICULTIES)[number]["key"];
 
@@ -26,7 +27,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
     : [];
   const isMember = meId !== null && group.memberIds.includes(meId);
   const gemini = geminiStatus();
-  const tr = await getTranslator([group.course, ...list.map((x) => x.topic)], locale);
+  const tr = await getTranslator(list.map((x) => x.topic), locale);
 
   // 小组总榜：累计答对题数
   const board = members
@@ -100,7 +101,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
             <summary className="cursor-pointer text-sm text-accent">{q.newQuiz}</summary>
             <ActionForm action={createQuiz} className="mt-3 space-y-3">
               <input type="hidden" name="groupId" value={group.id} />
-              <input name="topic" className="input" placeholder={q.topicPlaceholder(tr(group.course))} />
+              <input name="topic" className="input" placeholder={q.topicPlaceholder(subjectLabel(group.course, locale))} />
               <textarea name="notes" rows={3} className="input" placeholder={q.notesPlaceholder} />
               <div className="flex flex-wrap gap-3">
                 <select name="count" defaultValue={5} className="input !w-auto">

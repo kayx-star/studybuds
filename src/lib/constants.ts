@@ -103,8 +103,3 @@ export type PersonalityPref = (typeof PERSONALITY_PREFS)[number]["key"];
 
 export const labelOf = (list: readonly { key: string; label: string }[], key: string) =>
   list.find((x) => x.key === key)?.label ?? key;
-
-/** 统一课程名：去空格、英文转大写，让 "cs 101" 和 "CS101" 视为同一门课 */
-export function normalizeCourse(name: string) {
-  return name.trim().replace(/\s+/g, "").toUpperCase();
-}

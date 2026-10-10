@@ -18,6 +18,7 @@ import { localizeNames } from "@/i18n/names";
 import { getI18n } from "@/i18n/server";
 import { currentStudentId } from "@/lib/session";
 import { getTranslator } from "@/lib/translate";
+import { subjectLabel } from "@/lib/subjects";
 
 async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
   const [{ id }, { locale, t }] = await Promise.all([params, getI18n()]);
@@ -46,7 +47,7 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
       <GeminiNotice />
       <div>
         <Link href={localePath(locale, "/me")} className="text-sm text-muted hover:text-fg">{t.common.back}</Link>
-        <div className="mt-3 text-sm text-muted">{tr(group.course)}</div>
+        <div className="mt-3 text-sm text-muted">{subjectLabel(group.course, locale)}</div>
         <h1 className="text-2xl font-semibold">{tr(group.name)}</h1>
         <p className="mt-2 text-muted">{tr(group.reason)}</p>
         {group.byAi && <span className="chip mt-3">{t.group.byAi}</span>}
