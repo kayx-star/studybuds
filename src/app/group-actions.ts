@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
+import { getDb } from "@/db";
 import { requireMember } from "@/db/queries";
 import { quizAttempts, quizzes, reviews, studySessions } from "@/db/schema";
 import { localePath } from "@/i18n/config";
@@ -13,6 +14,7 @@ import { getActionI18n } from "@/i18n/server";
 import type { Dict } from "@/i18n/zh";
 import { DIFFICULTIES } from "@/lib/constants";
 import { generateQuiz } from "@/lib/gemini";
+import { quizState } from "@/lib/quiz-state";
 import { ensureTranslations } from "@/lib/translate";
 
 /** link: only used to show the password-reset link in development */
@@ -103,26 +105,79 @@ export async function createQuiz(_prev: FormState, formData: FormData): Promise<
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const { topic, notes, count, difficulty } = parsed.data;
 
-  const questions = await generateQuiz(ctx.group.course, topic, notes, count, difficulty, t.geminiLanguage);
-  if (!questions) return { error: t.quiz.errors.failed };
-
+  // Save the quiz right away and let Gemini write the questions in the background;
+  // the quiz page shows "generating" and refreshes itself until they are ready.
   const id = crypto.randomUUID();
   await ctx.db.insert(quizzes).values({
     id,
     groupId: ctx.group.id,
     topic,
     difficulty,
-    questions,
+    questions: [],
+    status: "generating",
+    request: { notes, count },
     createdBy: ctx.me.id,
     createdAt: new Date(),
   });
-  after(() =>
-    ensureTranslations([
-      topic,
-      ...questions.flatMap((q) => [q.question, q.explanation, q.concept, ...q.options, ...(q.optionNotes ?? [])]),
-    ]),
-  );
+  after(() => generateQuizQuestions(id, ctx.group.course, t.geminiLanguage));
   redirect(localePath(locale, `/quizzes/${id}`));
+}
+
+/** Background job: asks Gemini for the questions and stores the result or the failure reason */
+async function generateQuizQuestions(quizId: string, course: string, language: string) {
+  const db = await getDb();
+  const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, quizId));
+  if (!quiz) return;
+  const { notes, count } = quiz.request;
+  const result = await generateQuiz(course, quiz.topic, notes, count, quiz.difficulty, language).catch((err) => {
+    console.error("[quiz] generation crashed:", err);
+    return { ok: false as const, reason: "failed" as const };
+  });
+  if (!result.ok) {
+    await db.update(quizzes).set({ status: "failed", error: result.reason }).where(eq(quizzes.id, quizId));
+    return;
+  }
+  const questions = result.data;
+  await db.update(quizzes).set({ status: "ready", error: "", questions }).where(eq(quizzes.id, quizId));
+  await ensureTranslations([
+    quiz.topic,
+    ...questions.flatMap((q) => [q.question, q.explanation, q.concept, ...q.options, ...(q.optionNotes ?? [])]),
+  ]);
+}
+
+async function loadQuiz(formData: FormData) {
+  const quizId = String(formData.get("quizId"));
+  const groupId = String(formData.get("groupId"));
+  const ctx = await requireMember(groupId);
+  if (!ctx) return null;
+  const [quiz] = await ctx.db
+    .select()
+    .from(quizzes)
+    .where(and(eq(quizzes.id, quizId), eq(quizzes.groupId, groupId)));
+  return quiz ? { ...ctx, quiz } : null;
+}
+
+/** Any member can retry a quiz whose generation failed */
+export async function retryQuiz(formData: FormData) {
+  const { t } = await getActionI18n();
+  const ctx = await loadQuiz(formData);
+  if (!ctx || quizState(ctx.quiz) !== "failed") return;
+  await ctx.db
+    .update(quizzes)
+    .set({ status: "generating", error: "", createdAt: new Date() })
+    .where(eq(quizzes.id, ctx.quiz.id));
+  after(() => generateQuizQuestions(ctx.quiz.id, ctx.group.course, t.geminiLanguage));
+  revalidatePath("/[lang]/quizzes/[id]", "page");
+}
+
+/** The author can remove a quiz that failed to generate */
+export async function deleteQuiz(formData: FormData) {
+  const { locale } = await getActionI18n();
+  const ctx = await loadQuiz(formData);
+  if (!ctx || ctx.quiz.createdBy !== ctx.me.id || quizState(ctx.quiz) !== "failed") return;
+  await ctx.db.delete(quizzes).where(eq(quizzes.id, ctx.quiz.id));
+  revalidatePath("/[lang]/groups/[id]", "page");
+  redirect(localePath(locale, `/groups/${ctx.group.id}`));
 }
 
 export async function submitQuiz(formData: FormData) {
@@ -135,6 +190,7 @@ export async function submitQuiz(formData: FormData) {
     .from(quizzes)
     .where(and(eq(quizzes.id, quizId), eq(quizzes.groupId, ctx.group.id)));
   if (!quiz) redirect(localePath(locale, "/me"));
+  if (quiz.status !== "ready") redirect(localePath(locale, `/quizzes/${quizId}`));
 
   const answers = quiz.questions.map((_, i) => {
     const v = Number(formData.get(`q${i}`));

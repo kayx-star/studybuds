@@ -11,6 +11,8 @@ import { getI18n } from "@/i18n/server";
 import { DIFFICULTIES } from "@/lib/constants";
 import { waitText } from "@/components/gemini-notice";
 import { geminiStatus } from "@/lib/gemini";
+import { AutoRefresh } from "@/components/auto-refresh";
+import { quizState } from "@/lib/quiz-state";
 import { getTranslator } from "@/lib/translate";
 import { subjectLabel } from "@/lib/subjects";
 
@@ -59,6 +61,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
         </div>
       )}
 
+      {list.some((x) => quizState(x) === "generating") && <AutoRefresh intervalMs={5000} />}
       {list.length === 0 ? (
         <p className="text-sm text-muted">{q.empty}</p>
       ) : (
@@ -66,6 +69,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
           {list.map((x) => {
             const done = attempts.filter((a) => a.quizId === x.id);
             const mine = done.find((a) => a.studentId === meId);
+            const state = quizState(x);
             return (
               <li key={x.id}>
                 <Link href={localePath(locale, `/quizzes/${x.id}`)} className="flex items-center gap-3 py-2.5 hover:text-accent">
@@ -73,7 +77,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
                     <div className="font-medium">{tr(x.topic)}</div>
                     <div className="text-xs text-muted">
                       {q.meta(
-                        x.questions.length,
+                        x.questions.length || x.request.count,
                         t.options.difficulties[x.difficulty as DiffKey] ?? x.difficulty,
                         members.find((m) => m.id === x.createdBy)?.name ?? t.common.member,
                         done.length,
@@ -81,7 +85,11 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
                       )}
                     </div>
                   </div>
-                  {mine ? (
+                  {state === "generating" ? (
+                    <span className="chip">{q.statusGenerating}</span>
+                  ) : state === "failed" ? (
+                    <span className="chip text-red-600">{q.statusFailed}</span>
+                  ) : mine ? (
                     <span className="chip">
                       {mine.score}/{x.questions.length}
                     </span>

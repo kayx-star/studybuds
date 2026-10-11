@@ -2,7 +2,9 @@ import { eq, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { submitQuiz } from "@/app/group-actions";
+import { connection } from "next/server";
+import { deleteQuiz, retryQuiz, submitQuiz } from "@/app/group-actions";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { SubmitButton } from "@/components/submit-button";
 import { getDb } from "@/db";
 import { requireMember } from "@/db/queries";
@@ -13,6 +15,8 @@ import { getI18n } from "@/i18n/server";
 import { getTranslator, type Translate } from "@/lib/translate";
 import type { Dict } from "@/i18n/zh";
 import type { DIFFICULTIES } from "@/lib/constants";
+import type { GeminiFailure } from "@/lib/gemini";
+import { quizState } from "@/lib/quiz-state";
 import { subjectLabel } from "@/lib/subjects";
 
 type DiffKey = (typeof DIFFICULTIES)[number]["key"];
@@ -54,6 +58,7 @@ function ReviewSummary({
 }
 
 async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
+  await connection(); // quizState reads the current time
   const [{ id }, { locale, t }] = await Promise.all([params, getI18n()]);
   const tq = t.quiz;
   const db = await getDb();
@@ -70,7 +75,7 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
       displayName(s.name, locale),
     ]),
   );
-  const total = quiz.questions.length;
+  const total = quiz.questions.length || quiz.request.count;
   const tr = await getTranslator(
     [
       ctx.group.name,
@@ -81,6 +86,7 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
   );
   const author = names.get(quiz.createdBy) ?? t.common.member;
   const difficulty = t.options.difficulties[quiz.difficulty as DiffKey] ?? quiz.difficulty;
+  const state = quizState(quiz);
 
   return (
     <div className="space-y-6">
@@ -92,7 +98,35 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
         <h1 className="text-2xl font-semibold">{tr(quiz.topic)}</h1>
       </div>
 
-      {mine ? (
+      {state === "generating" ? (
+        <section className="card flex items-start gap-3" aria-live="polite">
+          <AutoRefresh />
+          <span className="mt-1 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+          <div>
+            <div className="font-medium">{tq.generatingTitle}</div>
+            <p className="mt-1 text-sm text-muted">{tq.generatingHint}</p>
+          </div>
+        </section>
+      ) : state === "failed" ? (
+        <section className="card space-y-3 border-red-300">
+          <div className="font-medium">{tq.failedTitle}</div>
+          <p className="text-sm text-muted">{tq.reasons[(quiz.error || "failed") as GeminiFailure] ?? tq.reasons.failed}</p>
+          <div className="flex flex-wrap gap-3">
+            <form action={retryQuiz}>
+              <input type="hidden" name="quizId" value={quiz.id} />
+              <input type="hidden" name="groupId" value={quiz.groupId} />
+              <SubmitButton pending={tq.retrying}>{tq.retry}</SubmitButton>
+            </form>
+            {quiz.createdBy === ctx.me.id && (
+              <form action={deleteQuiz}>
+                <input type="hidden" name="quizId" value={quiz.id} />
+                <input type="hidden" name="groupId" value={quiz.groupId} />
+                <button className="btn-ghost">{tq.deleteQuiz}</button>
+              </form>
+            )}
+          </div>
+        </section>
+      ) : mine ? (
         <>
           <section className="card flex flex-wrap items-center gap-6">
             <div>

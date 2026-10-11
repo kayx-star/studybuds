@@ -367,7 +367,20 @@ export const es: Dict = {
     errors: {
       topic: "Escribe un tema o capítulo",
       notesLong: "Los apuntes pueden tener como máximo 6000 caracteres",
-      failed: "Gemini no pudo generar el cuestionario. Inténtalo más tarde (requiere GEMINI_API_KEY)",
+    },
+    statusGenerating: "⏳ Generando",
+    statusFailed: "⚠️ Error",
+    generatingTitle: "Gemini está escribiendo tu cuestionario…",
+    generatingHint: "Suele tardar entre 10 y 60 segundos y las preguntas aparecerán solas. Puedes salir y mirarlo luego en la página del grupo.",
+    failedTitle: "No se pudo generar este cuestionario",
+    retry: "🔄 Reintentar",
+    retrying: "Enviando…",
+    deleteQuiz: "Eliminar este cuestionario",
+    reasons: {
+      busy: "El modelo de Gemini está saturado ahora mismo y el modelo de respaldo tampoco lo logró. Inténtalo de nuevo en uno o dos minutos.",
+      quota: "Se agotó la cuota gratuita de Gemini de hoy. Inténtalo más tarde.",
+      nokey: "Este sitio aún no tiene configurada una clave de la API de Gemini, así que los cuestionarios no están disponibles.",
+      failed: "Gemini no devolvió preguntas válidas. Prueba a reformular el tema o inténtalo más tarde.",
     },
   },
 

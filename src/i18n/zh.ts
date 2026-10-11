@@ -363,7 +363,20 @@ export const zh = {
     errors: {
       topic: "请填写章节或知识点",
       notesLong: "笔记最多 6000 字",
-      failed: "Gemini 出题失败，请稍后再试（需要配置 GEMINI_API_KEY）",
+    },
+    statusGenerating: "⏳ 出题中",
+    statusFailed: "⚠️ 出题失败",
+    generatingTitle: "Gemini 正在出题…",
+    generatingHint: "通常需要 10–60 秒，题目好了会自动显示。你也可以先离开，稍后在小组页查看。",
+    failedTitle: "这套题没有生成成功",
+    retry: "🔄 重新生成",
+    retrying: "提交中…",
+    deleteQuiz: "删除这套题",
+    reasons: {
+      busy: "Gemini 模型现在太忙（访问量过大），备用模型也没成功。请过一两分钟再试。",
+      quota: "Gemini 今天的免费额度已用完，请稍后再试。",
+      nokey: "网站还没有配置 Gemini API 密钥，暂时无法出题。",
+      failed: "Gemini 没有返回可用的题目，请换个说法或稍后再试。",
     },
   },
 

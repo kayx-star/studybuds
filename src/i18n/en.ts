@@ -366,7 +366,20 @@ export const en: Dict = {
     errors: {
       topic: "Please enter a chapter or topic",
       notesLong: "Notes can be at most 6000 characters",
-      failed: "Gemini couldn't generate the quiz. Please try again later (requires GEMINI_API_KEY)",
+    },
+    statusGenerating: "⏳ Generating",
+    statusFailed: "⚠️ Failed",
+    generatingTitle: "Gemini is writing your quiz…",
+    generatingHint: "This usually takes 10–60 seconds and the questions will appear automatically. You can leave and check the group page later.",
+    failedTitle: "This quiz couldn't be generated",
+    retry: "🔄 Try again",
+    retrying: "Submitting…",
+    deleteQuiz: "Delete this quiz",
+    reasons: {
+      busy: "The Gemini model is overloaded right now and the backup model didn't succeed either. Please try again in a minute or two.",
+      quota: "Gemini's free quota for today is used up. Please try again later.",
+      nokey: "This site has no Gemini API key configured yet, so quizzes are unavailable.",
+      failed: "Gemini didn't return usable questions. Try rewording the topic or try again later.",
     },
   },
 

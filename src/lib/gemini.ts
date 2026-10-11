@@ -25,6 +25,8 @@ const MODEL = process.env.GEMINI_MODEL ?? "gemini-flash-latest";
 export const geminiEnabled = ai !== null;
 
 const TRANSLATE_MODEL = process.env.GEMINI_TRANSLATE_MODEL ?? "gemini-flash-lite-latest";
+// Used when the main model is overloaded (503) or out of quota, so AI features keep working.
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? "gemini-flash-lite-latest";
 
 // 503 (model overloaded) and short 429s (per-minute rate limits) are worth retrying.
 // A 429 with a long retry delay (e.g. the free tier's daily quota is used up) pauses that
@@ -43,11 +45,14 @@ const pausedTill = (model: string) => {
 /** Used by pages to decide whether Gemini is usable right now or to show the "basic mode" notice. */
 export function geminiStatus() {
   const main = pausedTill(MODEL);
+  const backup = FALLBACK_MODEL === MODEL ? main : pausedTill(FALLBACK_MODEL);
+  // AI features are only unavailable when both the main and the fallback model are paused
+  const blocked = main !== null && backup !== null ? Math.min(main, backup) : null;
   return {
     enabled: geminiEnabled,
     /** Grouping / complementary matching / quizzes are available right now */
-    ready: geminiEnabled && main === null,
-    mainPausedUntil: main,
+    ready: geminiEnabled && blocked === null,
+    mainPausedUntil: blocked,
     translatePausedUntil: pausedTill(TRANSLATE_MODEL),
   };
 }
@@ -57,18 +62,13 @@ function retryDelayMs(err: unknown) {
   return match ? Number(match[1]) * 1000 : 0;
 }
 
-/**
- * Calls Gemini with a JSON schema and parses the result. Returns null on any failure so callers
- * can fall back to the rule-based version.
- * `language` is the output language name (e.g. "English") from the dictionary's geminiLanguage;
- * pass an empty string to leave it unspecified.
- */
-async function askJson<T>(prompt: string, schema: object, language: string, model = MODEL): Promise<T | null> {
-  if (!ai) return null;
-  if (pausedTill(model) !== null) return null;
-  if (language) {
-    prompt += `\n\nWrite all user-facing text in ${language} (keep JSON keys, ids and tag enum values unchanged).`;
-  }
+/** Why a Gemini call produced nothing, so the UI can say what actually happened */
+export type GeminiFailure = "nokey" | "busy" | "quota" | "failed";
+export type GeminiResult<T> = { ok: true; data: T } | { ok: false; reason: GeminiFailure };
+
+async function tryModel<T>(prompt: string, schema: object, model: string, delays: number[]): Promise<GeminiResult<T>> {
+  if (!ai) return { ok: false, reason: "nokey" };
+  if (pausedTill(model) !== null) return { ok: false, reason: "quota" };
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await ai.models.generateContent({
@@ -76,23 +76,54 @@ async function askJson<T>(prompt: string, schema: object, language: string, mode
         contents: prompt,
         config: { responseMimeType: "application/json", responseJsonSchema: schema },
       });
-      return JSON.parse(res.text ?? "") as T;
+      return { ok: true, data: JSON.parse(res.text ?? "") as T };
     } catch (err) {
       const status = (err as { status?: number }).status;
       const wait = retryDelayMs(err);
       if (status === 429 && wait > 10_000) {
         pausedUntil.set(model, Date.now() + wait);
-        console.error(`[gemini] ${model} quota exhausted, pausing for ${Math.round(wait / 60000)} min; using rule-based fallback`);
-        return null;
+        console.error(`[gemini] ${model} quota exhausted, pausing for ${Math.round(wait / 60000)} min`);
+        return { ok: false, reason: "quota" };
       }
-      if ((status === 503 || status === 429) && attempt < RETRY_DELAYS_MS.length) {
-        await new Promise((r) => setTimeout(r, Math.max(wait, RETRY_DELAYS_MS[attempt])));
+      const busy = status === 503 || status === 429;
+      if (busy && attempt < delays.length) {
+        await new Promise((r) => setTimeout(r, Math.max(wait, delays[attempt])));
         continue;
       }
-      console.error("[gemini] call failed; using rule-based fallback:", err);
-      return null;
+      console.error(`[gemini] ${model} call failed:`, err);
+      return { ok: false, reason: busy ? "busy" : "failed" };
     }
   }
+}
+
+/**
+ * Calls Gemini with a JSON schema and parses the result. Calls to the main model fall back to
+ * FALLBACK_MODEL when it is overloaded or out of quota.
+ * `language` is the output language name (e.g. "English") from the dictionary's geminiLanguage;
+ * pass an empty string to leave it unspecified.
+ * `delays` are the waits between retries; background jobs can afford longer ones.
+ */
+async function callJson<T>(
+  prompt: string,
+  schema: object,
+  language: string,
+  { model = MODEL, delays = RETRY_DELAYS_MS }: { model?: string; delays?: number[] } = {},
+): Promise<GeminiResult<T>> {
+  if (language) {
+    prompt += `\n\nWrite all user-facing text in ${language} (keep JSON keys, ids and tag enum values unchanged).`;
+  }
+  const first = await tryModel<T>(prompt, schema, model, delays);
+  if (first.ok || first.reason === "nokey" || model !== MODEL || FALLBACK_MODEL === MODEL) return first;
+  console.error(`[gemini] falling back to ${FALLBACK_MODEL}`);
+  const second = await tryModel<T>(prompt, schema, FALLBACK_MODEL, delays);
+  // Report the main model's problem (e.g. busy) rather than a secondary one
+  return second.ok ? second : first;
+}
+
+/** Like callJson but returns null on any failure, for callers with a rule-based fallback. */
+async function askJson<T>(prompt: string, schema: object, language: string, model = MODEL): Promise<T | null> {
+  const result = await callJson<T>(prompt, schema, language, { model });
+  return result.ok ? result.data : null;
 }
 
 /** Reads a student's self-introduction, writes a one-line study profile and suggests style tags. */
@@ -270,9 +301,9 @@ export async function generateQuiz(
   count: number,
   difficulty: string,
   language: string,
-): Promise<QuizQuestion[] | null> {
+): Promise<GeminiResult<QuizQuestion[]>> {
   course = subjectForPrompt(course);
-  const result = await askJson<{ questions: QuizQuestion[] }>(
+  const result = await callJson<{ questions: QuizQuestion[] }>(
     `You are a teaching assistant for the university subject "${course}". Write ${count} ${labelOf(DIFFICULTIES, difficulty)}-difficulty
 multiple-choice questions about "${topic}" for a friendly study-group competition.
 Requirements: each question has 4 options and exactly one correct answer ("answer" is the 0-3 index of the correct option);
@@ -305,11 +336,14 @@ ${notes.trim() ? `\nBase the questions primarily on the study notes below (the n
       required: ["questions"],
     },
     language,
+    // Runs in the background, so it can wait longer for an overloaded model before falling back
+    { delays: [2000, 5000, 10000] },
   );
-  if (!result) return null;
+  if (!result.ok) return result;
+  const questions = result.data.questions ?? [];
   // Drop optionNotes if the count is wrong; the page then falls back to showing only the explanation.
-  for (const q of result.questions) if (q.optionNotes?.length !== 4) delete q.optionNotes;
-  const valid = result.questions.filter(
+  for (const q of questions) if (q.optionNotes?.length !== 4) delete q.optionNotes;
+  const valid = questions.filter(
     (q) =>
       q.question.trim() &&
       q.options.length === 4 &&
@@ -317,7 +351,7 @@ ${notes.trim() ? `\nBase the questions primarily on the study notes below (the n
       q.answer >= 0 &&
       q.answer < 4,
   );
-  return valid.length > 0 ? valid.slice(0, count) : null;
+  return valid.length > 0 ? { ok: true, data: valid.slice(0, count) } : { ok: false, reason: "failed" };
 }
 
 export type TranslationRow = { zh: string; en: string; es: string };

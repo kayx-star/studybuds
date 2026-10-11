@@ -77,12 +77,21 @@ export type QuizQuestion = {
   /** Note per option: the misconception behind each wrong option (absent on older quizzes) */
   optionNotes?: string[];
 };
+export type QuizStatus = "generating" | "ready" | "failed";
+export type QuizRequest = { notes: string; count: number };
+
 export const quizzes = sqliteTable("quizzes", {
   id: text("id").primaryKey(),
   groupId: text("group_id").notNull(),
   topic: text("topic").notNull(),
   difficulty: text("difficulty").notNull(),
   questions: text("questions", { mode: "json" }).$type<QuizQuestion[]>().notNull(),
+  /** Questions are generated in the background: generating → ready | failed */
+  status: text("status").$type<QuizStatus>().notNull().default("ready"),
+  /** Failure reason (GeminiFailure) when status is failed */
+  error: text("error").notNull().default(""),
+  /** The original request, so a failed quiz can be retried */
+  request: text("request", { mode: "json" }).$type<QuizRequest>().notNull(),
   createdBy: text("created_by").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
@@ -247,6 +256,9 @@ CREATE TABLE IF NOT EXISTS quizzes (
   topic TEXT NOT NULL,
   difficulty TEXT NOT NULL,
   questions TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ready',
+  error TEXT NOT NULL DEFAULT '',
+  request TEXT NOT NULL DEFAULT '{"notes":"","count":5}',
   created_by TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
@@ -348,4 +360,7 @@ export const MIGRATIONS = [
   "ALTER TABLE students ADD COLUMN personality_pref TEXT NOT NULL DEFAULT 'any'",
   "ALTER TABLE reviews ADD COLUMN anonymous INTEGER NOT NULL DEFAULT 1",
   "ALTER TABLE students ADD COLUMN classes TEXT NOT NULL DEFAULT '[]'",
+  "ALTER TABLE quizzes ADD COLUMN status TEXT NOT NULL DEFAULT 'ready'",
+  "ALTER TABLE quizzes ADD COLUMN error TEXT NOT NULL DEFAULT ''",
+  `ALTER TABLE quizzes ADD COLUMN request TEXT NOT NULL DEFAULT '{"notes":"","count":5}'`,
 ];
