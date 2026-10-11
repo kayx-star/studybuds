@@ -26,7 +26,7 @@ export const geminiEnabled = ai !== null;
 
 const TRANSLATE_MODEL = process.env.GEMINI_TRANSLATE_MODEL ?? "gemini-flash-lite-latest";
 // Used when the main model is overloaded (503) or out of quota, so AI features keep working.
-const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? "gemini-flash-lite-latest";
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? "gemini-3.1-flash-lite";
 
 // 503 (model overloaded) and short 429s (per-minute rate limits) are worth retrying.
 // A 429 with a long retry delay (e.g. the free tier's daily quota is used up) pauses that
