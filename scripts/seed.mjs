@@ -1,4 +1,4 @@
-// 生成示例同学，方便本地体验匹配：npm run seed
+// Generates demo students for trying out matching locally: npm run seed
 import { createClient } from "@libsql/client";
 import { randomBytes, scryptSync } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -8,13 +8,16 @@ const schema = readFileSync(new URL("../src/db/schema.ts", import.meta.url), "ut
 await client.executeMultiple(schema.match(/export const DDL = `([\s\S]*?)`;/)[1]);
 for (const [, sql] of schema.matchAll(/"(ALTER TABLE [^"]+)"/g)) await client.execute(sql).catch(() => {});
 
+// Demo nicknames: a mix of Chinese and English names, like real users
 const NAMES = ["小林", "阿杰", "Momo", "晓雨", "大鹏", "Coco", "子轩", "一一", "老王", "Yuki", "思远", "安安", "Leo", "糖糖", "浩然", "七七", "阿诚", "Nina", "可乐", "北北"];
-// 科目代码，对应 src/lib/subjects.ts：数学、计算机、英语写作、机械航空、统计
+// Subject codes (see src/lib/subjects.ts): Mathematics, Computer Science, English Writing, Mechanical & Aerospace Eng., Statistics
 const COURSES = ["640", "198", "355", "650", "960"];
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const PERIODS = ["am", "pm", "eve"];
+// Style tags use the same Chinese keys as STYLE_TAGS in src/lib/constants.ts
 const TAGS = ["讨论交流", "安静自习", "刷题练习", "互相讲解", "笔记整理", "项目实践", "打卡监督", "考前冲刺"];
-// 每门课的知识点，用来生成“擅长/想补强”
+// Topics per subject (written in Chinese like real user input; the app translates them for display),
+// used to generate demo "good at / wants to improve" text
 const TOPICS = {
   "640": ["极限", "导数", "积分", "微分方程", "级数"],
   "198": ["循环", "函数", "递归", "指针", "链表"],
@@ -29,7 +32,7 @@ const pick = (arr, n) => [...arr].sort(() => Math.random() - 0.5).slice(0, n);
 const one = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 
-// 示例同学的登录密码（仅本地测试数据）
+// Login password for demo students (local test data only)
 const DEMO_PASSWORD = "demo1234";
 const hashPassword = (pw) => {
   const salt = randomBytes(16);
@@ -42,7 +45,7 @@ await client.execute("DELETE FROM students WHERE contact LIKE 'demo-%'");
 for (const [i, name] of NAMES.entries()) {
   const courses = pick(COURSES, rand(1, 3));
   const topics = pick(courses.flatMap((c) => TOPICS[c]), 4);
-  // 偏向晚上和周末，让匹配更真实
+  // Bias toward evenings and weekends to make matches more realistic
   const slots = pick(DAYS.flatMap((d) => PERIODS.map((p) => `${d}-${p}`)).filter((s) => s.endsWith("eve") || s.startsWith("sat") || s.startsWith("sun") || Math.random() < 0.2), rand(3, 7));
   const id = crypto.randomUUID();
   await client.execute({
@@ -61,5 +64,5 @@ for (const [i, name] of NAMES.entries()) {
       one(["any", "any", "introvert", "extrovert"]), Math.floor(Date.now() / 1000)],
   });
 }
-console.log(`已生成 ${NAMES.length} 位示例同学，课程：${COURSES.join("、")}`);
-console.log(`示例账号：demo-0@example.com ~ demo-${NAMES.length - 1}@example.com，密码 ${DEMO_PASSWORD}`);
+console.log(`Generated ${NAMES.length} demo students, subjects: ${COURSES.join(", ")}`);
+console.log(`Demo accounts: demo-0@example.com ~ demo-${NAMES.length - 1}@example.com, password ${DEMO_PASSWORD}`);

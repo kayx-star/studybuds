@@ -7,7 +7,7 @@ import { friendships, students } from "@/db/schema";
 import { friendPair } from "@/lib/friends";
 import { currentStudentId } from "@/lib/session";
 
-/** 发好友申请；如果对方已经申请过我，直接成为好友 */
+/** Sends a friend request; if they already requested me, we become friends right away */
 export async function sendFriendRequest(formData: FormData) {
   const sid = await currentStudentId();
   const other = String(formData.get("id") ?? "");
@@ -31,7 +31,7 @@ export async function sendFriendRequest(formData: FormData) {
   revalidatePath("/[lang]/friends", "page");
 }
 
-/** 接受或拒绝别人发给我的申请；拒绝时删除记录，对方以后还能再申请 */
+/** Accepts or declines a request sent to me; declining deletes it so they can ask again later */
 export async function respondFriendRequest(formData: FormData) {
   const sid = await currentStudentId();
   const requester = String(formData.get("id") ?? "");
@@ -50,7 +50,7 @@ export async function respondFriendRequest(formData: FormData) {
   revalidatePath("/[lang]/friends", "page");
 }
 
-/** 撤回我发出的申请，或删除好友 */
+/** Cancels my outgoing request, or removes a friend */
 export async function removeFriend(formData: FormData) {
   const sid = await currentStudentId();
   const other = String(formData.get("id") ?? "");

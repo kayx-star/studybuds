@@ -4,9 +4,9 @@ import { useMemo, useRef, useState } from "react";
 
 export type SubjectOption = {
   code: string;
-  /** 当前语言的显示文字，如 “计算机科学 (198)” */
+  /** Display text in the current language, e.g. "Computer Science (198)" */
   label: string;
-  /** 用于搜索：三种语言的名称 + 代码，小写 */
+  /** For search: names in all three languages plus the code, lowercased */
   search: string;
 };
 
@@ -14,10 +14,10 @@ export const MAX_SUBJECTS = 8;
 const MAX = MAX_SUBJECTS;
 
 /**
- * 科目选择器：仿 Rutgers Course Search 的 Subject 下拉框。
- * 点击输入框展开全部科目，输入文字筛选，点选或回车加入（选中后收起列表）；
- * 已选科目以标签显示在输入框上方，避免被展开的列表挡住。
- * 选中的科目代码通过隐藏的 <input name="courses"> 随表单提交。
+ * Subject picker modeled on the Rutgers Course Search "Subject" dropdown.
+ * Click to show all subjects, type to filter, click or press Enter to add (the list closes after picking);
+ * selected subjects show as chips above the input so the open list never covers them.
+ * Selected subject codes are submitted via hidden <input name="courses"> fields.
  */
 export function SubjectPicker({
   options,
@@ -29,7 +29,7 @@ export function SubjectPicker({
   removeLabel,
 }: {
   options: SubjectOption[];
-  /** 由父组件管理：选课程时会自动补上对应科目 */
+  /** Controlled by the parent so picking a course can add its subject */
   selected: string[];
   onChange: (codes: string[]) => void;
   placeholder: string;
@@ -108,7 +108,7 @@ export function SubjectPicker({
                 setActive(i);
                 scrollTo(i);
               } else if (e.key === "Enter") {
-                // 回车选中高亮项，而不是提交整个表单
+                // Enter picks the highlighted option instead of submitting the form
                 e.preventDefault();
                 if (open && filtered[active]) add(filtered[active].code);
               } else if (e.key === "Escape") {
@@ -143,7 +143,7 @@ export function SubjectPicker({
             id="subject-list"
             ref={listRef}
             role="listbox"
-            // 按住列表时不让输入框失焦，否则点不到选项
+            // Keep the input focused while pressing on the list, otherwise options can't be clicked
             onMouseDown={(e) => e.preventDefault()}
             className="absolute z-20 mt-0.5 max-h-80 w-full overflow-y-auto border border-slate-400 bg-white text-[13px] text-black shadow-lg dark:bg-slate-900 dark:text-slate-100"
           >

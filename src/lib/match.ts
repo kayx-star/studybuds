@@ -5,7 +5,7 @@ import type { Rating } from "./ratings";
 
 export type MatchMode = "similar" | "complement";
 
-/** 推荐理由存成结构化数据，显示时再按语言渲染（见 i18n/format.ts 的 reasonText） */
+/** Match reasons are structured data, rendered per language at display time (see reasonText in i18n/format.ts) */
 export type Reason =
   | { kind: "slots"; slots: string[] }
   | { kind: "noSlots" }
@@ -38,18 +38,18 @@ function jaccard(a: string[], b: string[]) {
 
 const paceIndex = (p: string) => PACES.findIndex((x) => x.key === p);
 
-/** 性别偏好是硬性条件，且双向生效；“不愿透露”的人只匹配选了“都可以”的人 */
+/** Gender preference is a hard, two-way filter; "prefer not to say" only matches people with "no preference" */
 const genderOk = (pref: Student["genderPref"], gender: Student["gender"]) => pref === "any" || pref === gender;
 export const compatible = (a: Student, b: Student) => genderOk(a.genderPref, b.gender) && genderOk(b.genderPref, a.gender);
 
-/** a 对 b 的校区满意度：在偏好里 1；没设偏好时同校区 1、不同 0.5；对方没填 0.6 */
+/** How well b's campus suits a: 1 if preferred; without a preference, 1 for the same campus, 0.5 otherwise; 0.6 if b didn't say */
 function campusFit(a: Student, b: Student) {
   if (!b.campus) return 0.6;
   if (a.campusPref.length > 0) return a.campusPref.includes(b.campus as never) ? 1 : 0.2;
   return a.campus && a.campus === b.campus ? 1 : 0.5;
 }
 
-/** a 对 b 的性格满意度 */
+/** How well b's personality suits a's preference */
 function personalityFit(a: Student, b: Student) {
   if (a.personalityPref === "any") return 1;
   if (!b.personality) return 0.6;
@@ -57,7 +57,7 @@ function personalityFit(a: Student, b: Student) {
   return b.personality === "ambivert" ? 0.6 : 0.2;
 }
 
-/** 两位同学的匹配度（0-100）：时间重叠最重要，其次是学习风格、校区和性格 */
+/** Match score between two students (0-100): shared free time matters most, then study style, campus and personality */
 export function pairScore(a: Student, b: Student): Omit<PairMatch, "student"> {
   const sharedSlots = intersect(a.slots, b.slots);
   const time = sharedSlots.length / Math.max(1, Math.min(a.slots.length, b.slots.length));
@@ -68,7 +68,7 @@ export function pairScore(a: Student, b: Student): Omit<PairMatch, "student"> {
   const tags = jaccard(a.tags, b.tags);
   const size = Math.max(0, 1 - Math.abs(a.groupSize - b.groupSize) / 3);
 
-  // 双向取平均：既看 b 合不合 a 的偏好，也看 a 合不合 b 的偏好
+  // Average both directions: does b suit a's preferences, and does a suit b's
   const campus = (campusFit(a, b) + campusFit(b, a)) / 2;
   const personality = (personalityFit(a, b) + personalityFit(b, a)) / 2;
 
@@ -99,14 +99,14 @@ export function pairScore(a: Student, b: Student): Omit<PairMatch, "student"> {
   return { score: Math.round(score * 100), sharedSlots, reasons };
 }
 
-/** 互评加减分：满分 5 星 +6，3 星不变，1 星 -6 */
+/** Peer-rating adjustment: 5 stars +6, 3 stars ±0, 1 star -6 */
 function withRating(m: PairMatch, rating?: Rating): PairMatch {
   if (!rating) return m;
   const score = Math.max(0, Math.min(100, Math.round(m.score + (rating.avg - 3) * 3)));
   return { ...m, score, reasons: [...m.reasons, { kind: "rating", avg: rating.avg, count: rating.count }] };
 }
 
-/** 课程层面的加分：同一门课 +10，同一个班（Index）再 +8；只看当前科目下的课程 */
+/** Course-level bonus: same course +10, same section (index) another +8; only courses in the current subject count */
 function withClasses(m: PairMatch, me: Student, subject: string): PairMatch {
   const mine = me.classes.filter((c) => c.startsWith(subject + ":"));
   const theirs = m.student.classes.filter((c) => c.startsWith(subject + ":"));
@@ -121,7 +121,7 @@ function withClasses(m: PairMatch, me: Student, subject: string): PairMatch {
   return { ...m, score, reasons: [...reasons, ...m.reasons] };
 }
 
-/** 为某门课推荐搭子，按匹配度排序 */
+/** Recommends buddies for a subject, sorted by match score */
 export function recommend(
   me: Student,
   all: Student[],
@@ -137,7 +137,7 @@ export function recommend(
     .slice(0, limit);
 }
 
-/** 互补匹配的候选：同课、有共同时间、线上线下不冲突 */
+/** Candidates for complementary matching: same subject, shared free time, compatible online/in-person mode */
 export function complementPool(me: Student, all: Student[], course: string, limit = 10) {
   return all
     .filter((s) => s.id !== me.id && s.courses.includes(course) && compatible(me, s))
@@ -153,7 +153,7 @@ const terms = (text: string) =>
     .map((t) => t.trim().toUpperCase())
     .filter((t) => t.length >= 2);
 
-/** 规则版互补匹配（Gemini 不可用时）：看我的弱项是否出现在对方擅长里，反之亦然 */
+/** Rule-based complementary matching (when Gemini is unavailable): are my weak topics in their strengths, and vice versa */
 export function ruleComplements(me: Student, pool: Student[], t: Dict): ComplementPick[] {
   const hits = (wants: string, has: string) => {
     const hay = has.toUpperCase();
@@ -175,7 +175,7 @@ export function commonSlots(members: Student[]) {
   return members.reduce<string[]>((acc, s) => intersect(acc, s.slots), members[0]?.slots ?? []);
 }
 
-/** 规则版组队（Gemini 不可用时的兜底）：贪心加入与现有成员平均匹配度最高、且仍有共同时间的人 */
+/** Rule-based grouping (fallback when Gemini is unavailable): greedily add whoever has the best average match with current members while everyone still shares free time */
 export function greedyGroup(me: Student, candidates: Student[], size: number): Student[] {
   const members = [me];
   while (members.length < size) {

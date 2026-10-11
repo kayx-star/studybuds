@@ -11,7 +11,7 @@ const COOKIE = "session";
 const MAX_AGE_DAYS = 30;
 const scryptAsync = promisify(scrypt) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
 
-// ---------- 密码 ----------
+// ---------- Passwords ----------
 
 export async function hashPassword(password: string) {
   const salt = randomBytes(16);
@@ -27,7 +27,7 @@ export async function verifyPassword(password: string, stored: string) {
   return timingSafeEqual(actual, expected);
 }
 
-// ---------- 会话 ----------
+// ---------- Sessions ----------
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
@@ -58,7 +58,7 @@ export async function endSession() {
   store.delete(COOKIE);
 }
 
-/** 当前登录用户 id（同时也是 TA 的学生资料 id），未登录返回 null；同一次请求内只查一次库 */
+/** Id of the logged-in user (also their student profile id), or null; queried at most once per request */
 export const currentStudentId = cache(async (): Promise<string | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
@@ -66,12 +66,12 @@ export const currentStudentId = cache(async (): Promise<string | null> => {
   const [row] = await db
     .select({ userId: authSessions.userId })
     .from(authSessions)
-    // 过期判断交给数据库（unixepoch() 为当前秒数），渲染期间不能直接用 new Date()
+    // Let the database check expiry (unixepoch() is the current time) since new Date() isn't allowed during render
     .where(and(eq(authSessions.tokenHash, sha256(token)), gt(authSessions.expiresAt, sql`(unixepoch())`)));
   return row?.userId ?? null;
 });
 
-// ---------- 登录失败限流（单机内存版，上线多实例时需换成数据库/Redis） ----------
+// ---------- Login rate limiting (in-memory; use a database/Redis with multiple instances) ----------
 
 const failures = new Map<string, { count: number; until: number }>();
 const LIMIT = 5;

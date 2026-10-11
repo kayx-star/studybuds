@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { LOCALES, LOCALE_NAMES, type Locale } from "@/i18n/config";
 
-/** 切换语言：替换网址里的语言段，保留当前页面和查询参数。
- *  只在切换时读取 window.location（渲染时读网址会阻止页面预渲染） */
+/** Switches language by replacing the locale segment of the URL, keeping the page and query string.
+ *  Reads window.location only on change (reading the URL during render would block prerendering) */
 export function LanguageSwitcher({ locale, label }: { locale: Locale; label: string }) {
   const router = useRouter();
 

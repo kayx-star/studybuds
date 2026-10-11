@@ -6,19 +6,19 @@ import { translations } from "@/db/schema";
 import type { Locale } from "@/i18n/config";
 import { translateBatch } from "./gemini";
 
-// 用户写的内容和 Gemini 生成的内容会被翻译成三种语言并缓存在 translations 表，
-// 这样页面切换语言时不会混入其他语言。昵称等人名不经过这里。
+// User-written and Gemini-generated content is translated into all three languages and cached in the translations table,
+// so a page never mixes languages when the locale changes. Personal names don't go through here.
 
 const BATCH = 40;
 const hashOf = (text: string) => createHash("sha256").update(text).digest("hex");
 
-/** 没有任何字母/汉字的内容（数字、符号、网址片段）不需要翻译 */
+/** Text with no letters at all (numbers, symbols, URL fragments) needs no translation */
 const needsTranslation = (text: string) => /\p{L}/u.test(text);
 
 const clean = (texts: (string | null | undefined)[]) =>
   [...new Set(texts.map((t) => t?.trim()).filter((t): t is string => !!t && needsTranslation(t)))];
 
-/** 确保这些文字都有翻译；缺的批量交给 Gemini，失败时静默跳过（页面退回显示原文） */
+/** Ensures these texts have translations; missing ones go to Gemini in batches, and failures are skipped silently (the page shows the original) */
 export async function ensureTranslations(texts: (string | null | undefined)[]) {
   const unique = clean(texts);
   if (unique.length === 0) return;
@@ -44,7 +44,7 @@ export async function ensureTranslations(texts: (string | null | undefined)[]) {
 
 export type Translate = (text: string | null | undefined) => string;
 
-/** 返回一个把原文换成当前语言译文的函数；先补齐缺失的翻译 */
+/** Returns a function mapping source text to the current-language translation, filling in missing translations first */
 export async function getTranslator(texts: (string | null | undefined)[], locale: Locale): Promise<Translate> {
   const unique = clean(texts);
   if (unique.length === 0) return (t) => t ?? "";

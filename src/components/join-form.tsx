@@ -8,7 +8,7 @@ import { MAX_SUBJECTS, SubjectPicker, type SubjectOption } from "./subject-picke
 
 type Option = { key: string; label: string };
 
-/** 由服务端页面按当前语言准备好的文字（客户端组件只能接收纯数据） */
+/** Text prepared by the server page in the current language (client components only accept plain data) */
 export type JoinLabels = {
   name: string;
   namePlaceholder: string;
@@ -98,12 +98,12 @@ function Choice({
 
 export function JoinForm({ student, l }: { student: Student | null; l: JoinLabels }) {
   const [state, action, isPending] = useActionState<JoinState, FormData>(saveProfile, {});
-  // 科目由这里统一管理：在下面选了课程，会自动把它的科目加进来
+  // Subjects are managed here so picking a course below can add its subject automatically
   const [subjects, setSubjects] = useState<string[]>(() =>
     (student?.courses ?? []).filter((c) => l.subjects.some((o) => o.code === c)),
   );
 
-  // 用 onSubmit 手动提交，避免 React 在校验失败后清空已填内容
+  // Submit manually in onSubmit so React doesn't reset the form after a validation error
   return (
     <form
       action={action}

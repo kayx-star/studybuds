@@ -6,7 +6,7 @@ import { isLocale } from "@/i18n/config";
 import { dictFor } from "@/i18n/dicts";
 import { getTranslator } from "@/lib/translate";
 
-/** 把小组代码打包成 VS Code 项目：源码放 src/，附带 Java 插件推荐和说明 */
+/** Packages the group's code as a VS Code project: sources in src/, plus Java extension recommendations and a README */
 export async function GET(_req: Request, ctx: RouteContext<"/[lang]/groups/[id]/code/download">) {
   const { id, lang } = await ctx.params;
   const member = await requireMember(id);

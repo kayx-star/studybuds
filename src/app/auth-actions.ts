@@ -24,7 +24,7 @@ import {
 
 const email = (e: Dict["auth"]["errors"]) => z.string().trim().toLowerCase().email(e.invalidEmail);
 
-/** 只允许站内跳转，防止被利用跳到外部网站 */
+/** Only allow same-site redirects so this can't be abused to send users elsewhere */
 function safeNext(value: FormDataEntryValue | null, fallback: string) {
   const next = typeof value === "string" ? value : "";
   return next.startsWith("/") && !next.startsWith("//") ? next : fallback;
@@ -65,7 +65,7 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
 
   const db = await getDb();
   const [user] = await db.select().from(users).where(eq(users.email, address));
-  // 账号不存在也走一遍校验，避免通过响应时间判断邮箱是否注册
+  // Hash even when the account doesn't exist so response time doesn't reveal registered emails
   const ok = user ? await verifyPassword(password, user.passwordHash) : (await hashPassword(password), false);
   if (!user || !ok) {
     recordLoginFailure(address);
@@ -84,12 +84,12 @@ export async function logout() {
   redirect(localePath(locale, "/"));
 }
 
-// ---------- 找回密码 ----------
+// ---------- Password reset ----------
 
 const RESET_TTL_MS = 30 * 60_000;
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
-// 同一邮箱 15 分钟内最多申请 3 次（单机内存版，上线多实例时需换成数据库/Redis）
+// At most 3 requests per email per 15 minutes (in-memory; use a database/Redis with multiple instances)
 const resetRequests = new Map<string, number[]>();
 function tooManyResets(email: string) {
   const now = Date.now();
@@ -98,7 +98,7 @@ function tooManyResets(email: string) {
   return recent.length >= 3;
 }
 
-/** 网站地址：优先用 APP_URL，否则按当前请求推断 */
+/** Site origin: APP_URL if set, otherwise inferred from the request */
 async function siteOrigin() {
   if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
   const h = await headers();
@@ -114,7 +114,7 @@ export async function requestPasswordReset(_prev: FormState, formData: FormData)
   const address = parsed.data;
   if (tooManyResets(address)) return { error: t.auth.errors.tooManyResets };
 
-  // 无论邮箱是否注册，都返回同样的提示，防止被用来试探哪些邮箱注册过
+  // Return the same message whether or not the email is registered, so this can't be used to probe accounts
   const done: FormState = { ok: t.auth.linkSent };
   const db = await getDb();
   const [user] = await db.select().from(users).where(eq(users.email, address));
@@ -132,9 +132,9 @@ export async function requestPasswordReset(_prev: FormState, formData: FormData)
     const sent = await sendMail(address, t.auth.emailSubject, t.auth.emailBody(link));
     return sent ? done : { error: t.auth.errors.mailFailed };
   }
-  // 没配置邮件服务：开发时直接把链接给出来方便测试；正式环境绝不显示
+  // No mail service configured: show the link in development for testing; never in production
   if (process.env.NODE_ENV === "development") {
-    console.log(`[mail] 未配置 SMTP，重设链接：${link}`);
+    console.log(`[mail] SMTP not configured, reset link: ${link}`);
     return { ...done, ok: t.auth.devLink, link };
   }
   return { error: t.auth.errors.mailFailed };
@@ -157,7 +157,7 @@ export async function resetPassword(_prev: FormState, formData: FormData): Promi
 
   const db = await getDb();
   const now = new Date();
-  // 原子地把令牌标记为已使用，确保一个链接只能用一次
+  // Atomically mark the token as used so each link works only once
   const [reset] = await db
     .update(passwordResets)
     .set({ usedAt: now })
@@ -166,7 +166,7 @@ export async function resetPassword(_prev: FormState, formData: FormData): Promi
   if (!reset) return { error: t.auth.errors.invalidToken };
 
   await db.update(users).set({ passwordHash: await hashPassword(password) }).where(eq(users.id, reset.userId));
-  // 改密码后让所有设备上的登录失效
+  // Log out all devices after a password change
   await db.delete(authSessions).where(eq(authSessions.userId, reset.userId));
   const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, reset.userId));
   if (user) clearLoginFailures(user.email);

@@ -25,7 +25,7 @@ export async function sendMessage(input: { to: string; body: string }): Promise<
   return { message: { id: row.id, mine: true, body, at: row.createdAt.getTime() } };
 }
 
-/** 按需把一条消息翻译成当前界面语言（只有聊天双方能翻译） */
+/** Translates one message into the current UI language on demand (only the two participants can) */
 export async function translateMessage(id: string): Promise<{ text?: string; error?: string }> {
   const { locale, t } = await getActionI18n();
   const sid = await currentStudentId();

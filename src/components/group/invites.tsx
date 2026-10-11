@@ -9,7 +9,7 @@ import { localizeNames } from "@/i18n/names";
 import { getI18n } from "@/i18n/server";
 import { compatible, recommend } from "@/lib/match";
 
-/** 小组页上的邀请区：被邀请人看到接受/婉拒；组员看到待回复名单并可继续邀请 */
+/** Invite panel on the group page: invitees see accept/decline; members see pending invites and can invite more */
 export async function InvitePanel({ group, members, meId }: { group: Group; members: Student[]; meId: string | null }) {
   const { locale, t } = await getI18n();
   const db = await getDb();
@@ -43,7 +43,7 @@ export async function InvitePanel({ group, members, meId }: { group: Group; memb
 
   if (!group.memberIds.includes(meId)) return null;
   const me = all.find((s) => s.id === meId)!;
-  // 可邀请：同课、不在组里、没被邀请、且与所有现有组员偏好兼容
+  // Invitable: same subject, not a member, not already invited, and compatible with every current member
   const candidates = recommend(me, all, group.course, await getRatings()).filter(
     (m) =>
       !group.memberIds.includes(m.student.id) &&

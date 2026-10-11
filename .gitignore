@@ -40,9 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# 本地数据库
+# Local database (contains user data)
 local.db*
 !.env.example
 
-# 本机工具配置（含本地路径），不上传
+# Local tool config (contains local paths)
 .claude/

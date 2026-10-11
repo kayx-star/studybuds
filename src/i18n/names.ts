@@ -3,7 +3,7 @@ import type { Locale } from "./config";
 
 const HAN = /[㐀-鿿]+/g;
 
-/** 英文/西语界面把中文昵称转成拼音（小林 → Xiaolin）；中文界面和非中文昵称保持原样 */
+/** On English/Spanish pages, Chinese nicknames are shown in pinyin (小林 → Xiaolin); Chinese pages and non-Chinese names are unchanged */
 export function displayName(name: string, locale: Locale) {
   if (locale === "zh") return name;
   return name.replace(HAN, (run) => {
@@ -12,6 +12,6 @@ export function displayName(name: string, locale: Locale) {
   });
 }
 
-/** 只换显示用的 name，其余字段（匹配、发给 Gemini 用的数据）不变 */
+/** Only the displayed name changes; other fields (used for matching and Gemini) stay the same */
 export const localizeNames = <T extends { name: string }>(list: T[], locale: Locale): T[] =>
   locale === "zh" ? list : list.map((s) => ({ ...s, name: displayName(s.name, locale) }));

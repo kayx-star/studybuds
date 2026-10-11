@@ -1,6 +1,6 @@
 import { searchCourses } from "@/lib/courses";
 
-/** 课程自动补全：/api/courses?q=intro&s=198,640 */
+/** Course autocomplete: /api/courses?q=intro&s=198,640 */
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const q = (url.searchParams.get("q") ?? "").slice(0, 60);

@@ -8,7 +8,7 @@ export type Rating = {
   communication: number;
 };
 
-/** 汇总每位同学收到的互评 */
+/** Aggregates the peer reviews each student received */
 export function summarizeRatings(reviews: Review[]) {
   const byStudent = new Map<string, Review[]>();
   for (const r of reviews) byStudent.set(r.revieweeId, [...(byStudent.get(r.revieweeId) ?? []), r]);

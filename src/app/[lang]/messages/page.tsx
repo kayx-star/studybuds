@@ -23,7 +23,7 @@ async function Conversations() {
     db.select({ id: students.id, name: students.name }).from(students),
   ]);
 
-  // 按对方分组：最新一条 + 未读数
+  // Group by the other person: latest message plus unread count
   const threads = new Map<string, { last: (typeof rows)[number]; unread: number }>();
   for (const m of rows) {
     const other = m.senderId === sid ? m.recipientId : m.senderId;

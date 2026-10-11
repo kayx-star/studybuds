@@ -5,8 +5,8 @@ import { leaveGroup } from "@/app/actions";
 import { SubmitButton } from "@/components/submit-button";
 
 /**
- * 退出小组：页面内两步确认。
- * 不用 window.confirm，因为部分内嵌浏览器会直接拦截弹窗（相当于点了“取消”），导致按钮没反应。
+ * Leave group with an in-page two-step confirmation.
+ * Avoids window.confirm because some embedded browsers block dialogs (treated as "Cancel"), making the button do nothing.
  */
 export function LeaveGroupButton({
   groupId,

@@ -13,9 +13,9 @@ export type CodeEditorLabels = {
   shortcut: string;
   loadLatest: string;
   overwrite: string;
-  synced: string; // 含 {name} 占位
-  remoteChanged: string; // 含 {name} 占位
-  conflict: string; // 含 {name} 占位
+  synced: string; // contains a {name} placeholder
+  remoteChanged: string; // contains a {name} placeholder
+  conflict: string; // contains a {name} placeholder
   loading: string;
 };
 
@@ -24,9 +24,9 @@ type Banner = { kind: "synced" | "remote" | "conflict" | "error"; text: string }
 const POLL_MS = 4000;
 
 /**
- * 共享代码编辑器（Monaco，即 VS Code 的编辑器内核）。
- * 每 4 秒检查一次服务器版本：没有未保存修改时自动载入别人的更新；
- * 有未保存修改时提示，保存时若版本已变化则提示冲突，不会覆盖别人的内容。
+ * Shared code editor (Monaco, the editor that powers VS Code).
+ * Checks the server version every 4 s: loads others' changes automatically when there are no unsaved edits;
+ * with unsaved edits it warns instead, and a save after someone else's change reports a conflict rather than overwriting.
  */
 export function CodeEditor({
   groupId,
@@ -51,9 +51,9 @@ export function CodeEditor({
   const [banner, setBanner] = useState<Banner>(null);
   const [conflict, setConflict] = useState<{ content: string; version: number } | null>(null);
   const version = useRef(initialVersion);
-  // 已经提示过的远端版本，避免轮询时反复覆盖提示（尤其是冲突提示）
+  // Remote version already announced, so polling doesn't keep replacing the banner (especially the conflict one)
   const notifiedVersion = useRef(initialVersion);
-  // 轮询回调里需要读到最新的 dirty，用 ref 同步
+  // The polling callback needs the latest `dirty`, so mirror it in a ref
   const dirtyRef = useRef(false);
   useEffect(() => {
     dirtyRef.current = dirty;
@@ -61,7 +61,7 @@ export function CodeEditor({
 
   const fill = (template: string, who: string) => template.replace("{name}", who);
 
-  // 轮询服务器版本
+  // Poll the server version
   useEffect(() => {
     const timer = setInterval(async () => {
       try {
@@ -78,7 +78,7 @@ export function CodeEditor({
           setBanner((b) => (b?.kind === "conflict" ? b : { kind: "remote", text: fill(l.remoteChanged, data.by) }));
         }
       } catch {
-        // 网络抖动时下一轮再试
+        // On a network hiccup, just try again next round
       }
     }, POLL_MS);
     return () => clearInterval(timer);
@@ -105,7 +105,7 @@ export function CodeEditor({
     [groupId, fileId, content, l.conflict],
   );
 
-  // ⌘S / Ctrl+S 保存
+  // ⌘S / Ctrl+S saves
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {

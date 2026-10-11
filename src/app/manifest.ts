@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 
-// PWA 清单：手机浏览器“添加到主屏幕”后像 App 一样全屏打开
+// PWA manifest: after "Add to Home Screen" the site opens full-screen like an app
 export default function manifest(): MetadataRoute.Manifest {
   return {
+    // Home-screen app name, bilingual on purpose (Chinese + English)
     name: "学习搭子 Study Buddy",
     short_name: "学习搭子",
     description: "按课程、时间、学习风格匹配学习搭子 · Find study buddies by course, schedule and style",

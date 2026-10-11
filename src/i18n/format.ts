@@ -19,7 +19,7 @@ export const tagLabel = (t: Dict, tag: string) => t.options.tags[tag] ?? tag;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** 如“10月12日周一”“Mon, Oct 12”“lun, 12 oct” */
+/** e.g. "10月12日周一", "Mon, Oct 12", "lun, 12 oct" */
 export function formatDay(locale: Locale, date: string) {
   const [y, m, d] = date.split("-").map(Number);
   return new Intl.DateTimeFormat(HTML_LANG[locale], { month: "short", day: "numeric", weekday: "short" }).format(

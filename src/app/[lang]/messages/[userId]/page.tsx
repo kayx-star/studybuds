@@ -13,7 +13,7 @@ import { canMessage, pairWhere } from "@/lib/chat";
 import { currentStudentId } from "@/lib/session";
 
 async function Thread({ params }: { params: Promise<{ userId: string }> }) {
-  await connection(); // 下面标记已读会写入当前时间
+  await connection(); // marking messages as read below writes the current time
   const [{ userId }, { locale, t }, sid] = await Promise.all([params, getI18n(), currentStudentId()]);
   if (!sid) redirect(localePath(locale, `/login?next=/messages/${userId}`));
   const db = await getDb();
@@ -21,7 +21,7 @@ async function Thread({ params }: { params: Promise<{ userId: string }> }) {
   if (!other || !(await canMessage(sid, userId))) notFound();
 
   const rows = await db.select().from(messages).where(pairWhere(sid, userId)).orderBy(asc(messages.createdAt));
-  // 打开对话即标记已读
+  // Opening the conversation marks messages as read
   await db
     .update(messages)
     .set({ readAt: new Date() })

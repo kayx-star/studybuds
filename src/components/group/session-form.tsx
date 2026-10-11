@@ -17,7 +17,7 @@ export type SessionFormLabels = {
   durations: { minutes: number; label: string }[];
 };
 
-/** suggestions 的 label 已在服务端按语言格式化 */
+/** suggestion labels are already formatted for the current language on the server */
 export function SessionForm({
   groupId,
   suggestions,

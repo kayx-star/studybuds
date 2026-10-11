@@ -3,7 +3,7 @@ import { and, eq, or } from "drizzle-orm";
 import { getDb } from "@/db";
 import { friendships } from "@/db/schema";
 
-/** 两人之间的好友记录（不分方向） */
+/** The friendship row between two people (either direction) */
 export const friendPair = (a: string, b: string) =>
   or(
     and(eq(friendships.requesterId, a), eq(friendships.addresseeId, b)),

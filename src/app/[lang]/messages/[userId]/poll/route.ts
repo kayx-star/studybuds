@@ -4,7 +4,7 @@ import { messages } from "@/db/schema";
 import { pairWhere } from "@/lib/chat";
 import { currentStudentId } from "@/lib/session";
 
-/** 聊天页轮询：返回 after（毫秒）之后的新消息，并把对方发来的标为已读 */
+/** Polled by the chat page: returns messages newer than `after` (ms) and marks incoming ones as read */
 export async function GET(req: Request, ctx: RouteContext<"/[lang]/messages/[userId]/poll">) {
   const sid = await currentStudentId();
   if (!sid) return Response.json({ error: "unauthorized" }, { status: 401 });

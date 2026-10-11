@@ -19,7 +19,7 @@ type DiffKey = (typeof DIFFICULTIES)[number]["key"];
 
 const LETTERS = ["A", "B", "C", "D"];
 
-/** 按知识点汇总错题，告诉学生该复习什么 */
+/** Groups wrong answers by concept to tell the student what to review */
 function ReviewSummary({
   questions,
   answers,
@@ -60,7 +60,7 @@ async function QuizDetail({ params }: { params: Promise<{ id: string }> }) {
   const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, id));
   if (!quiz) notFound();
   const ctx = await requireMember(quiz.groupId);
-  if (!ctx) notFound(); // 题目只对组员开放
+  if (!ctx) notFound(); // quizzes are visible to group members only
 
   const attempts = await db.select().from(quizAttempts).where(eq(quizAttempts.quizId, quiz.id));
   const mine = attempts.find((a) => a.studentId === ctx.me.id);

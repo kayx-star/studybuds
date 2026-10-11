@@ -1,7 +1,7 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
-// 注意：正式（production）模式下 refresh() 不会让页面重新渲染，统一用 revalidatePath
+// Note: in production, refresh() does not re-render the page, so we use revalidatePath everywhere
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
@@ -15,10 +15,10 @@ import { DIFFICULTIES } from "@/lib/constants";
 import { generateQuiz } from "@/lib/gemini";
 import { ensureTranslations } from "@/lib/translate";
 
-/** link：仅开发模式下展示重设密码链接时使用 */
+/** link: only used to show the password-reset link in development */
 export type FormState = { error?: string; ok?: string; link?: string };
 
-// ---------- 约自习 ----------
+// ---------- Study sessions ----------
 
 const sessionSchema = (e: Dict["sessions"]["errors"]) =>
   z.object({
@@ -85,7 +85,7 @@ export async function cancelSession(formData: FormData) {
   revalidatePath("/[lang]/groups/[id]", "page");
 }
 
-// ---------- AI 出题比拼 ----------
+// ---------- AI quizzes ----------
 
 const quizSchema = (e: Dict["quiz"]["errors"]) =>
   z.object({
@@ -142,7 +142,7 @@ export async function submitQuiz(formData: FormData) {
   });
   const score = quiz.questions.filter((q, i) => q.answer === answers[i]).length;
 
-  // 每人只能作答一次：已作答时保留第一次成绩
+  // One attempt per person: keep the first score if already answered
   await ctx.db
     .insert(quizAttempts)
     .values({ quizId, studentId: ctx.me.id, answers, score, createdAt: new Date() })
@@ -150,7 +150,7 @@ export async function submitQuiz(formData: FormData) {
   redirect(localePath(locale, `/quizzes/${quizId}`));
 }
 
-// ---------- 搭子互评 ----------
+// ---------- Peer reviews ----------
 
 const reviewSchema = (e: Dict["reviews"]["errors"]) => {
   const star = z.coerce.number({ error: e.stars }).int().min(1, e.stars).max(5);
@@ -179,7 +179,7 @@ export async function saveReview(_prev: FormState, formData: FormData): Promise<
     contribution: data.contribution,
     communication: data.communication,
     comment: data.comment,
-    // 没勾选的复选框不会出现在表单里
+    // Unchecked checkboxes are not included in the form data
     anonymous: formData.get("anonymous") === "on",
     createdAt: new Date(),
   };

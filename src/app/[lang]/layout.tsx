@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t.meta.title,
     description: t.meta.description,
-    // iPhone “添加到主屏幕”后全屏打开、使用 App 图标
+    // On iPhone, "Add to Home Screen" opens full-screen with the app icon
     appleWebApp: { capable: true, title: t.meta.title, statusBarStyle: "default" },
     icons: { apple: "/icons/180.png" },
   };

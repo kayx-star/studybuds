@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import type { FormState } from "@/app/group-actions";
 
-/** 带错误/成功提示的表单，内部用 SubmitButton 显示提交中状态 */
+/** Form that shows error/success messages; use SubmitButton inside for the pending state */
 export function ActionForm({
   action,
   children,

@@ -4,14 +4,14 @@ import { getDb } from "@/db";
 import { groups, messages, students } from "@/db/schema";
 import { areFriends } from "./friends";
 
-/** 两人之间的全部消息条件 */
+/** Condition matching all messages between two people */
 export const pairWhere = (a: string, b: string) =>
   or(
     and(eq(messages.senderId, a), eq(messages.recipientId, b)),
     and(eq(messages.senderId, b), eq(messages.recipientId, a)),
   );
 
-/** 能否私信：好友、同课程、同小组，或对方先给你发过消息 */
+/** Can message: friends, same subject, same group, or they messaged you first */
 export async function canMessage(meId: string, otherId: string) {
   if (meId === otherId) return false;
   const db = await getDb();

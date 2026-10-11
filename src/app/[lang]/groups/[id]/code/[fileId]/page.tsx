@@ -12,7 +12,7 @@ import { getTranslator } from "@/lib/translate";
 async function EditorPage({ params }: { params: Promise<{ id: string; fileId: string }> }) {
   const [{ id, fileId }, { locale, t }] = await Promise.all([params, getI18n()]);
   const ctx = await requireMember(id);
-  if (!ctx) notFound(); // 代码只对组员开放
+  if (!ctx) notFound(); // code is visible to group members only
   const files = await ctx.db.select().from(codeFiles).where(eq(codeFiles.groupId, id)).orderBy(asc(codeFiles.name));
   const [file] = await ctx.db.select().from(codeFiles).where(and(eq(codeFiles.id, fileId), eq(codeFiles.groupId, id)));
   if (!file) notFound();
@@ -41,7 +41,7 @@ async function EditorPage({ params }: { params: Promise<{ id: string; fileId: st
           </Link>
         ))}
       </nav>
-      {/* key 让切换文件时编辑器状态重置 */}
+      {/* key resets editor state when switching files */}
       <CodeEditor
         key={file.id}
         groupId={id}

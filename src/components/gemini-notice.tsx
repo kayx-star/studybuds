@@ -9,8 +9,8 @@ export function waitText(t: Dict, until: number) {
 }
 
 /**
- * Gemini 额度用完时提示用户正在使用普通版、多久后恢复。
- * 放在页面内容里而不是共用布局里：提交表单后布局不会重新渲染，页面会。
+ * When Gemini's quota runs out, tells users they're on the basic version and when it resumes.
+ * Rendered inside page content rather than the shared layout: layouts don't re-render after a form action, pages do.
  */
 export async function GeminiNotice() {
   await connection();

@@ -11,7 +11,7 @@ import { getI18n } from "@/i18n/server";
 const ASPECTS = ["reliability", "contribution", "communication"] as const;
 
 function StarInput({ name, value }: { name: string; value?: number }) {
-  // 5 个单选按钮，倒序渲染再 flex-row-reverse 显示，选中项和排在它后面（视觉上在左侧）的星星点亮
+  // 5 radio buttons rendered in reverse and displayed with flex-row-reverse, so the checked star and those after it (visually to its left) light up
   return (
     <div className="inline-flex flex-row-reverse justify-end">
       {[5, 4, 3, 2, 1].map((n) => (
@@ -36,7 +36,7 @@ export async function Reviews({ group, members, meId }: { group: Group; members:
     db.select().from(reviews).where(and(eq(reviews.groupId, group.id), eq(reviews.revieweeId, meId))),
   ]);
   const others = members.filter((m) => m.id !== meId);
-  // 署名评价的人可能已退出小组，所以从全部同学里找昵称
+  // Named reviewers may have left the group, so look up nicknames among all students
   const all = localizeNames(await db.select().from(students), locale);
   const tr = await getTranslator(received.map((x) => x.comment), locale);
 

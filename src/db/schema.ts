@@ -5,9 +5,9 @@ export const students = sqliteTable("students", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   contact: text("contact").notNull(),
-  /** 科目代码，如 "198"；匹配同学的主要依据 */
+  /** Subject codes, e.g. "198"; the main basis for matching */
   courses: text("courses", { mode: "json" }).$type<string[]>().notNull(),
-  /** 选填的具体课程："198:111" 或 "198:111#11389"（带 Index 班级） */
+  /** Optional specific courses: "198:111", or "198:111#11389" with a section index */
   classes: text("classes", { mode: "json" }).$type<string[]>().notNull().default([]),
   slots: text("slots", { mode: "json" }).$type<string[]>().notNull(),
   pace: text("pace").$type<Pace>().notNull(),
@@ -42,7 +42,7 @@ export const groups = sqliteTable("groups", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-/** Gemini 互补匹配结果缓存，避免每次打开页面都调用 */
+/** Cache of Gemini complementary-matching results, so the page doesn't call Gemini on every load */
 export type ComplementPick = { id: string; score: number; reason: string };
 export const complements = sqliteTable("complements", {
   studentId: text("student_id").notNull(),
@@ -52,7 +52,7 @@ export const complements = sqliteTable("complements", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-/** 约自习 */
+/** Study sessions */
 export const studySessions = sqliteTable("study_sessions", {
   id: text("id").primaryKey(),
   groupId: text("group_id").notNull(),
@@ -66,15 +66,15 @@ export const studySessions = sqliteTable("study_sessions", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-/** AI 出题 */
+/** AI quizzes */
 export type QuizQuestion = {
   question: string;
   options: string[];
   answer: number;
   explanation: string;
-  /** 考查的知识点 */
+  /** Concept being tested */
   concept?: string;
-  /** 每个选项的说明：错误选项对应的常见误解（旧题目没有） */
+  /** Note per option: the misconception behind each wrong option (absent on older quizzes) */
   optionNotes?: string[];
 };
 export const quizzes = sqliteTable("quizzes", {
@@ -95,7 +95,7 @@ export const quizAttempts = sqliteTable("quiz_attempts", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-/** 搭子互评：每人对每位组员在每个小组里只有一条，可修改 */
+/** Peer reviews: one per reviewer, reviewee and group; can be updated */
 export const reviews = sqliteTable("reviews", {
   groupId: text("group_id").notNull(),
   reviewerId: text("reviewer_id").notNull(),
@@ -104,12 +104,12 @@ export const reviews = sqliteTable("reviews", {
   contribution: integer("contribution").notNull(),
   communication: integer("communication").notNull(),
   comment: text("comment").notNull(),
-  /** 评价人可以选择匿名（默认）或署上自己的昵称 */
+  /** Reviewers can stay anonymous (default) or show their nickname */
   anonymous: integer("anonymous", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-/** 登录账号；students.id 与 users.id 相同（资料是账号的一部分） */
+/** Login accounts; students.id equals users.id (the profile is part of the account) */
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
@@ -117,14 +117,14 @@ export const users = sqliteTable("users", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-/** 登录会话：cookie 里放随机令牌，这里只存它的 SHA-256 */
+/** Login sessions: the cookie holds a random token; only its SHA-256 is stored here */
 export const authSessions = sqliteTable("auth_sessions", {
   tokenHash: text("token_hash").primaryKey(),
   userId: text("user_id").notNull(),
   expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
 });
 
-/** 组队邀请：被邀请人接受后才加入 groups.memberIds */
+/** Group invites: invitees are added to groups.memberIds only after accepting */
 export type InviteStatus = "pending" | "accepted" | "declined";
 export const invites = sqliteTable("invites", {
   id: text("id").primaryKey(),
@@ -135,7 +135,7 @@ export const invites = sqliteTable("invites", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-/** 小组共享代码文件 */
+/** Shared code files for a group */
 export const codeFiles = sqliteTable("code_files", {
   id: text("id").primaryKey(),
   groupId: text("group_id").notNull(),
@@ -146,7 +146,7 @@ export const codeFiles = sqliteTable("code_files", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
-/** 好友关系：pending = 等待对方接受；accepted = 已是好友。拒绝或删除时直接删掉这一行 */
+/** Friendships: pending = waiting for the other person; accepted = friends. Declining or removing deletes the row */
 export const friendships = sqliteTable("friendships", {
   id: text("id").primaryKey(),
   requesterId: text("requester_id").notNull(),
@@ -156,7 +156,7 @@ export const friendships = sqliteTable("friendships", {
 });
 export type Friendship = typeof friendships.$inferSelect;
 
-/** 私信：createdAt 用毫秒，保证同一秒内的消息顺序正确 */
+/** Direct messages: createdAt is in milliseconds so messages within the same second stay ordered */
 export const messages = sqliteTable("messages", {
   id: text("id").primaryKey(),
   senderId: text("sender_id").notNull(),
@@ -167,7 +167,7 @@ export const messages = sqliteTable("messages", {
 });
 export type Message = typeof messages.$inferSelect;
 
-/** 重设密码令牌：邮件里放随机令牌，这里只存 SHA-256；一次性、30 分钟有效 */
+/** Password-reset tokens: the email holds a random token; only its SHA-256 is stored; single-use, valid 30 minutes */
 export const passwordResets = sqliteTable("password_resets", {
   tokenHash: text("token_hash").primaryKey(),
   userId: text("user_id").notNull(),
@@ -175,7 +175,7 @@ export const passwordResets = sqliteTable("password_resets", {
   usedAt: integer("used_at", { mode: "timestamp" }),
 });
 
-/** 用户内容 / AI 内容的翻译缓存，按原文的 SHA-256 存 */
+/** Translation cache for user and AI content, keyed by the SHA-256 of the source text */
 export const translations = sqliteTable("translations", {
   hash: text("hash").primaryKey(),
   source: text("source").notNull(),
@@ -192,7 +192,7 @@ export type Review = typeof reviews.$inferSelect;
 export type Invite = typeof invites.$inferSelect;
 export type CodeFile = typeof codeFiles.$inferSelect;
 
-// 首次启动时自动建表，免去迁移工具
+// Tables are created on first start, so no migration tool is needed
 export const DDL = `
 CREATE TABLE IF NOT EXISTS students (
   id TEXT PRIMARY KEY,
@@ -336,7 +336,7 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 `;
 
-// 给已有数据库补列；列已存在时 SQLite 会报错，忽略即可
+// Adds columns to existing databases; SQLite errors if a column already exists, which we ignore
 export const MIGRATIONS = [
   "ALTER TABLE students ADD COLUMN strong TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE students ADD COLUMN weak TEXT NOT NULL DEFAULT ''",

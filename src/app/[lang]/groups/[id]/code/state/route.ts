@@ -4,7 +4,7 @@ import { codeFiles, students } from "@/db/schema";
 import { isLocale } from "@/i18n/config";
 import { displayName } from "@/i18n/names";
 
-/** 编辑器轮询用：返回文件当前版本；版本比 since 新时附带内容 */
+/** Polled by the editor: returns the file's current version, and its content when newer than `since` */
 export async function GET(req: Request, ctx: RouteContext<"/[lang]/groups/[id]/code/state">) {
   const { id, lang } = await ctx.params;
   const member = await requireMember(id);

@@ -1,4 +1,4 @@
-// 代码协作的共享工具（客户端和服务端都会用）
+// Shared helpers for code collaboration (used on client and server)
 
 export const MAX_CODE_BYTES = 200_000;
 
@@ -18,7 +18,7 @@ const LANGUAGES: Record<string, string> = {
 
 export const languageOf = (name: string) => LANGUAGES[name.split(".").pop() ?? ""] ?? "plaintext";
 
-/** 新建文件的初始内容：Java 文件给一个能直接运行的 main */
+/** Starter content for new files: Java files get a runnable main method */
 export function starterCode(name: string) {
   if (name.endsWith(".java")) {
     const cls = name.replace(/\.java$/, "");

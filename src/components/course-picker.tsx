@@ -11,7 +11,7 @@ export type CourseLabels = {
   max: string;
   remove: string;
   wholeCourse: string;
-  /** 已经带好占位符的模板：{sec} {idx} {who} */
+  /** Template with placeholders: {sec} {idx} {who} */
   section: string;
 };
 
@@ -25,8 +25,8 @@ export function courseText(c: CourseItem, l: CourseLabels) {
 }
 
 /**
- * Course / Index 选择器（选填）：输入课程号、课程名或 5 位 Index，从服务器搜索并自动补全。
- * 选中后显示为标签，并通过 onAddSubject 让上面的 Subject 自动加入对应科目。
+ * Optional Course / Index picker: type a course number, title or 5-digit index to search the server with autocomplete.
+ * Picked courses appear as chips, and onAddSubject adds the course's subject to the Subject picker above.
  */
 export function CoursePicker({
   initial,
@@ -48,7 +48,7 @@ export function CoursePicker({
   const listRef = useRef<HTMLUListElement>(null);
   const subjectsKey = subjects.join(",");
 
-  // 输入停顿 200ms 后再搜索，避免每个字都请求
+  // Search 200 ms after typing stops instead of on every keystroke
   useEffect(() => {
     const q = query.trim();
     if (!q) return;
@@ -60,7 +60,7 @@ export function CoursePicker({
         setResults(data.results);
         setActive(0);
       } catch {
-        // 被新的输入取消，或网络问题：忽略
+        // Cancelled by newer input, or a network issue: ignore
       } finally {
         setLoading(false);
       }
@@ -75,7 +75,7 @@ export function CoursePicker({
 
   const add = (item: CourseItem) => {
     if (selected.length >= MAX) return;
-    // 同一门课只保留一条：选了具体班就替换掉“整门课”，反之亦然
+    // Keep one entry per course: a specific section replaces the whole course, and vice versa
     const course = item.id.split("#")[0];
     setSelected([...selected.filter((s) => s.id.split("#")[0] !== course), item]);
     onAddSubject(item.id.slice(0, 3));
@@ -124,7 +124,7 @@ export function CoursePicker({
             const v = e.target.value;
             setQuery(v);
             setOpen(true);
-            // 清空时直接清掉结果；有内容时先显示“搜索中”，由上面的 effect 发请求
+            // Clear results when emptied; otherwise show "searching" and let the effect above fetch
             if (v.trim()) setLoading(true);
             else setResults([]);
           }}

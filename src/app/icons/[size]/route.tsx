@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 const SIZES = new Set([180, 192, 512]);
 
-/** 生成 App 图标（/icons/192.png 等）：紫色圆角底 + 书本 */
+/** Generates the app icon (/icons/192.png etc.): purple background with a book */
 export async function GET(_req: Request, ctx: RouteContext<"/icons/[size]">) {
   const size = Number((await ctx.params).size.replace(/\.png$/, ""));
   if (!SIZES.has(size)) return new Response("Not found", { status: 404 });

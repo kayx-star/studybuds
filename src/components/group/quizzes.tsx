@@ -17,7 +17,7 @@ import { subjectLabel } from "@/lib/subjects";
 type DiffKey = (typeof DIFFICULTIES)[number]["key"];
 
 export async function Quizzes({ group, members, meId }: { group: Group; members: Student[]; meId: string | null }) {
-  await connection(); // geminiStatus 会读当前时间
+  await connection(); // geminiStatus reads the current time
   const { locale, t } = await getI18n();
   const q = t.quiz;
   const db = await getDb();
@@ -29,7 +29,7 @@ export async function Quizzes({ group, members, meId }: { group: Group; members:
   const gemini = geminiStatus();
   const tr = await getTranslator(list.map((x) => x.topic), locale);
 
-  // 小组总榜：累计答对题数
+  // Group leaderboard: total correct answers
   const board = members
     .map((m) => {
       const mine = attempts.filter((a) => a.studentId === m.id);

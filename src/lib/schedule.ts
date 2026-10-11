@@ -1,6 +1,6 @@
 import { DAYS } from "./constants";
 
-/** 各时段默认开始时间 */
+/** Default start time for each period */
 export const PERIOD_START: Record<string, string> = { am: "09:00", pm: "14:00", eve: "19:00" };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -8,17 +8,17 @@ export const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${p
 
 export type Suggestion = { date: string; start: string; slot: string };
 
-/** 未来两周内落在共同空闲时段上的日期，用于一键约自习 */
+/** Dates in the next two weeks that fall on shared free slots, for one-click session scheduling */
 export function nextOccurrences(slots: string[], now: Date, limit = 6): Suggestion[] {
   const result: Suggestion[] = [];
   for (let i = 0; i < 14 && result.length < limit; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-    const dayKey = DAYS[(d.getDay() + 6) % 7].key; // getDay: 0=周日
+    const dayKey = DAYS[(d.getDay() + 6) % 7].key; // getDay: 0 = Sunday
     for (const slot of slots) {
       const [day, period] = slot.split("-");
       if (day !== dayKey) continue;
       const start = PERIOD_START[period];
-      // 今天已经过了开始时间的不推荐
+      // Skip slots that already started today
       if (i === 0 && `${pad(now.getHours())}:${pad(now.getMinutes())}` >= start) continue;
       result.push({ date: ymd(d), start, slot });
     }
@@ -28,7 +28,7 @@ export function nextOccurrences(slots: string[], now: Date, limit = 6): Suggesti
 
 const icsEscape = (s: string) => s.replace(/[\\;,]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
 
-/** 生成 .ics 日历文件（使用本地“浮动时间”，日历按手机所在时区显示） */
+/** Builds an .ics calendar file (floating local time, shown in the device's time zone) */
 export function toIcs(e: {
   id: string;
   date: string;

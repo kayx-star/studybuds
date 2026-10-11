@@ -35,7 +35,7 @@ async function GroupDetail({ params }: { params: Promise<{ id: string }> }) {
     currentStudentId(),
     getRatings(),
   ]);
-  // 联系方式只对组员可见
+  // Contact info is visible to group members only
   const isMember = sid !== null && group.memberIds.includes(sid);
   const tr = await getTranslator(
     [group.course, group.name, group.reason, ...group.plan.flatMap((p) => [p.title, p.detail]), ...members.map((m) => m.strong)],

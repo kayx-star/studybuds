@@ -10,7 +10,7 @@ export async function getRatings() {
   return summarizeRatings(await db.select().from(reviews));
 }
 
-/** 当前登录同学必须是该小组成员，否则返回 null */
+/** Returns null unless the logged-in student is a member of the group */
 export async function requireMember(groupId: string) {
   const sid = await currentStudentId();
   if (!sid) return null;

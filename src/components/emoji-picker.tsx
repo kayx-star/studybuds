@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// 分类用图标做标签，三种语言都不需要翻译
+// Category tabs use icons, so they need no translation
 const GROUPS: { icon: string; emojis: string[] }[] = [
   {
     icon: "😀",
@@ -41,14 +41,14 @@ function loadRecent(): string[] {
   }
 }
 
-/** 表情面板：点 😊 打开，点表情回调 onPick；记住最近用过的表情（仅存在本机浏览器） */
+/** Emoji panel: 😊 opens it, picking calls onPick; remembers recent emoji (stored only in this browser) */
 export function EmojiPicker({ onPick, label }: { onPick: (emoji: string) => void; label: string }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState(0);
   const [recent, setRecent] = useState<string[]>([]);
   const box = useRef<HTMLDivElement>(null);
 
-  // 点面板外面时关闭
+  // Close when clicking outside the panel
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
@@ -65,7 +65,7 @@ export function EmojiPicker({ onPick, label }: { onPick: (emoji: string) => void
     try {
       localStorage.setItem(RECENT_KEY, JSON.stringify(next));
     } catch {
-      // 隐私模式下存不了就算了
+      // Storage may be unavailable in private mode; that's fine
     }
   };
 

@@ -41,9 +41,9 @@ type Ctx = {
   ratings: Map<string, Rating>;
   t: Dict;
   locale: Locale;
-  /** 我已邀请过、还没回复的同学 id（按课程） */
+  /** Ids of classmates I've invited who haven't replied yet (per subject) */
   invitedIds: Set<string>;
-  /** 把用户内容/AI 内容换成当前语言 */
+  /** Translates user/AI content into the current language */
   tr: Translate;
 };
 
@@ -56,7 +56,7 @@ function Score({ score, t }: { score: number; t: Dict }) {
   );
 }
 
-/** 卡片左上角的勾选框；已邀请的显示标签 */
+/** Checkbox at the card's top-left; already-invited people show a label instead */
 function Pick({ id, invited, t }: { id: string; invited: boolean; t: Dict }) {
   if (invited) return <span className="chip">{t.me.invited}</span>;
   return (
@@ -72,7 +72,7 @@ function MessageLink({ id, t, locale }: { id: string; t: Dict; locale: Locale })
   );
 }
 
-/** 展开查看同学的完整介绍和互评分（不含联系方式和评语，评语只给被评价的人看） */
+/** Expandable full profile and rating breakdown (no contact info or comments; comments are only shown to the person reviewed) */
 function ProfileDetails({ s, rating, t, tr }: { s: Student; rating?: Rating; t: Dict; tr: Translate }) {
   const o = t.options;
   const tags = [o.paces[s.pace], o.modes[s.mode], o.goals[s.goal], ...s.tags.map((tag) => tagLabel(t, tag))];
@@ -141,7 +141,7 @@ function ProfileDetails({ s, rating, t, tr }: { s: Student; rating?: Rating; t: 
   );
 }
 
-/** 我收到的所有评价：平均分 + 每条评语（匿名或署名） */
+/** All reviews I've received: averages plus each comment (anonymous or named) */
 function MyReviews({
   list,
   rating,
@@ -196,7 +196,7 @@ function MyReviews({
   );
 }
 
-/** 推荐卡片外包一层表单：勾选后一起发邀请 */
+/** Wraps the match cards in a form so ticked classmates are invited together */
 function InviteForm({ course, t, children }: { course: string; t: Dict; children: React.ReactNode }) {
   return (
     <ActionForm action={inviteToNewGroup} className="space-y-3">
@@ -219,7 +219,7 @@ function Stars({ rating, t }: { rating?: Rating; t: Dict }) {
   );
 }
 
-/** 配置了 Gemini 但额度用完时，在按钮上标注“普通版” */
+/** When Gemini is configured but out of quota, label buttons as "basic" */
 const basicSuffix = (t: Dict) => (geminiStatus().enabled ? t.gemini.basic : "");
 
 function GroupButton({ course, mode, size, t }: { course: string; mode: MatchMode; size: number; t: Dict }) {
@@ -394,7 +394,7 @@ function ReceivedInvites({
 }
 
 async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
-  await connection(); // 下面会读当前时间（Gemini 额度状态），需先声明为请求时渲染
+  await connection(); // reads the current time below (Gemini quota status), so render at request time
   const [{ locale, t }, { mode: modeParam }, sid] = await Promise.all([getI18n(), searchParams, currentStudentId()]);
   const mode: MatchMode = modeParam === "complement" ? "complement" : "similar";
   const to = (path: string) => localePath(locale, path);
@@ -418,7 +418,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
   const nameOf = (id: string) => all.find((s) => s.id === id)?.name ?? t.common.left;
   const received = pendingInvites.filter((i) => i.inviteeId === me.id && groupById.has(i.groupId));
   const sent = pendingInvites.filter((i) => i.inviterId === me.id && groupById.has(i.groupId));
-  // 页面上会出现的用户内容/AI 内容，统一换成当前语言
+  // User/AI content shown on this page, translated into the current language
   const shownGroups = allGroups.filter(
     (g) => myGroups.includes(g) || received.some((i) => i.groupId === g.id) || sent.some((i) => i.groupId === g.id),
   );
@@ -428,7 +428,7 @@ async function Dashboard({ searchParams }: { searchParams: Promise<{ mode?: stri
       ...me.courses,
       ...shownGroups.map((g) => g.name),
       ...classmates.flatMap((s) => [s.aiSummary, s.strong, s.weak, s.bio]),
-      // 课程名是英文官方名，中文/西语页面翻译后显示
+      // Course titles are official English names; translate them for zh/es pages
       ...classmates.flatMap((s) => s.classes.map((c) => classInfo(c)?.title)),
       ...myReviews.map((r) => r.comment),
       ...myReviews.map((r) => groupById.get(r.groupId)?.name),

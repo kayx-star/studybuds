@@ -16,7 +16,7 @@ import { subjectLabel } from "@/lib/subjects";
 
 type Relation = "none" | "friend" | "outgoing" | "incoming";
 
-/** 一个同学的卡片：昵称、课程、校区 + 按关系显示的按钮 */
+/** One classmate row: nickname, subjects, campus, plus buttons depending on the relationship */
 function PersonRow({
   s,
   relation,
@@ -72,7 +72,7 @@ function PersonRow({
         {relation === "friend" && (
           <>
             <Link href={localePath(locale, `/messages/${s.id}`)} className="btn-ghost">{t.chat.message}</Link>
-            {/* 删除前用展开确认，不依赖浏览器弹窗 */}
+            {/* Confirm removal with an inline popover instead of a browser dialog */}
             <details className="relative">
               <summary className="btn-ghost cursor-pointer list-none text-red-600">{f.remove}</summary>
               <form action={removeFriend} className="absolute right-0 z-10 mt-1 flex items-center gap-2 rounded-xl border border-line bg-surface p-2 shadow">
@@ -118,7 +118,7 @@ async function FriendsContent({ searchParams }: { searchParams: Promise<{ q?: st
   const incoming = pick("incoming");
   const outgoing = pick("outgoing");
 
-  // 搜索：昵称（含拼音）部分匹配，或完整邮箱精确匹配；结果不显示邮箱
+  // Search: partial match on nickname (including pinyin) or exact match on full email; emails are never shown
   const query = q.trim().toLowerCase();
   let results: Student[] = [];
   if (query) {

@@ -42,8 +42,8 @@ export type SaveResult =
   | { ok: false; conflict: true; version: number; content: string; by: string };
 
 /**
- * 保存文件（乐观锁）：只有当数据库里的版本仍是 baseVersion 时才写入，
- * 否则返回最新内容让用户选择；force=true 时强制覆盖。
+ * Saves a file with optimistic locking: writes only if the stored version is still baseVersion,
+ * otherwise returns the latest content so the user can choose; force=true overwrites.
  */
 export async function saveFile(input: {
   groupId: string;
@@ -67,7 +67,7 @@ export async function saveFile(input: {
     return { ok: false, conflict: true, version: file.version, content: file.content, by: name };
   }
 
-  // 条件更新：防止两次保存同时通过上面的检查
+  // Conditional update: prevents two concurrent saves from both passing the check above
   const version = file.version + 1;
   const updated = await ctx.db
     .update(codeFiles)

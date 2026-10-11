@@ -1,7 +1,7 @@
 "use server";
 
 import { and, eq, inArray } from "drizzle-orm";
-// 注意：正式（production）模式下 refresh() 不会让页面重新渲染，统一用 revalidatePath
+// Note: in production, refresh() does not re-render the page, so we use revalidatePath everywhere
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
@@ -60,7 +60,7 @@ const profileSchema = (e: Dict["join"]["errors"]) =>
   z.object({
     name: z.string().trim().min(1, e.name).max(20, e.nameLong),
     contact: z.string().trim().min(1, e.contact).max(50),
-    // 只接受科目表里的代码（如 "198"），去重；所选课程的科目自动补进来
+    // Only accept codes from the subject list (e.g. "198"), deduplicated; subjects of chosen courses are added automatically
     courses: z.array(z.string()),
     classes: z
       .array(z.string())
@@ -121,7 +121,7 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
   const db = await getDb();
   const [existing] = await db.select().from(students).where(eq(students.id, sid));
 
-  // 自我介绍变了才重新请 Gemini 分析
+  // Only ask Gemini to re-analyze when the bio changed
   let aiSummary = existing?.aiSummary ?? null;
   let tags: string[] = data.tags;
   if (data.bio !== existing?.bio) {
@@ -132,15 +132,15 @@ export async function saveProfile(_prev: JoinState, formData: FormData): Promise
 
   if (existing) {
     await db.update(students).set({ ...data, tags, aiSummary }).where(eq(students.id, existing.id));
-    // 擅长/薄弱或课程变了，之前的互补匹配结果就不准了
+    // Strengths/weaknesses or subjects changed, so cached complementary matches are stale
     if (data.strong !== existing.strong || data.weak !== existing.weak || data.courses.join() !== existing.courses.join()) {
       await db.delete(complements).where(eq(complements.studentId, existing.id));
     }
   } else {
-    // 资料 id 与账号 id 相同
+    // The profile id is the same as the account id
     await db.insert(students).values({ ...data, tags, aiSummary, id: sid, createdAt: new Date() });
   }
-  // 后台预先翻译成三种语言，别人用其他语言浏览时无需等待
+  // Pre-translate into all three languages in the background so other viewers don't wait
   after(() => ensureTranslations([...data.courses, aiSummary, data.strong, data.weak]));
   redirect(localePath(locale, "/me"));
 }
@@ -161,7 +161,7 @@ export async function formGroup(formData: FormData) {
 
   let pool = recommend(me, all, course, ratings);
   if (mode === "complement") {
-    // 互补模式：候选人换成有共同时间的人，分数用互补分（有缓存就用缓存）
+    // Complementary mode: candidates are people with shared free time, scored by complementarity (cached if available)
     const [cached] = await db
       .select()
       .from(complements)
@@ -184,7 +184,7 @@ export async function formGroup(formData: FormData) {
       .filter((s): s is Student => !!s)
       .slice(0, want);
     const candidate = [me, ...picked];
-    // 只接受彼此偏好兼容、且有共同空闲时间的 AI 方案，否则回退到规则组队
+    // Only accept the AI's pick if everyone's preferences are compatible and they share free time; otherwise fall back to rule-based grouping
     const pairwiseOk = candidate.every((a, i) => candidate.slice(i + 1).every((b) => compatible(a, b)));
     if (picked.length > 0 && pairwiseOk && commonSlots(candidate).length > 0) members = candidate;
   }
@@ -195,7 +195,7 @@ export async function formGroup(formData: FormData) {
     me.groupSize,
   );
 
-  // 小组先只有发起人自己，其余人收到邀请，接受后才加入
+  // The group starts with just the requester; everyone else gets an invite and joins after accepting
   const id = await createGroupWithInvites(me, course, members.slice(1), t, {
     name: byAi ? ai?.groupName : undefined,
     reason: byAi ? ai?.reason : undefined,
@@ -205,7 +205,7 @@ export async function formGroup(formData: FormData) {
   redirect(to(`/groups/${id}`));
 }
 
-/** 建组并给其他人发邀请；组名、理由和计划用发起人当时的语言生成并保存 */
+/** Creates a group and invites the others; name, reason and plan are generated in the requester's language */
 async function createGroupWithInvites(
   me: Student,
   course: string,
@@ -215,7 +215,7 @@ async function createGroupWithInvites(
 ) {
   const db = await getDb();
   const expectedSlots = commonSlots([me, ...invitees]);
-  // 默认文案里嵌入的课程名先换成当前语言，避免一句话里夹两种语言
+  // Put the subject name in the current language first so default text doesn't mix languages
   const { locale } = await getActionI18n();
   const courseName = subjectLabel(course, locale);
   const id = crypto.randomUUID();
@@ -253,7 +253,7 @@ async function sendInvites(groupId: string, inviterId: string, inviteeIds: strin
   );
 }
 
-/** 从推荐列表里手动勾选同学，建组并发邀请 */
+/** Creates a group from classmates ticked in the match list and invites them */
 export async function inviteToNewGroup(_prev: FormState, formData: FormData): Promise<FormState> {
   const { locale, t } = await getActionI18n();
   const sid = await currentStudentId();
@@ -268,7 +268,7 @@ export async function inviteToNewGroup(_prev: FormState, formData: FormData): Pr
   if (picked.length === 0) return { error: t.me.errors.noneSelected };
   if (picked.length > 5) return { error: t.me.errors.tooMany(5) };
 
-  // 只能邀请同课、且双方偏好兼容的同学
+  // Only classmates in the same subject with compatible preferences can be invited
   const invitees = all.filter((s) => picked.includes(s.id) && s.courses.includes(course) && compatible(me, s));
   if (invitees.length === 0) return { error: t.me.errors.noneSelected };
 
@@ -276,7 +276,7 @@ export async function inviteToNewGroup(_prev: FormState, formData: FormData): Pr
   redirect(localePath(locale, `/groups/${id}`));
 }
 
-/** 小组成员邀请更多同学 */
+/** Lets group members invite more classmates */
 export async function inviteMore(_prev: FormState, formData: FormData): Promise<FormState> {
   const { t } = await getActionI18n();
   const ctx = await requireMember(String(formData.get("groupId")));
@@ -304,7 +304,7 @@ export async function inviteMore(_prev: FormState, formData: FormData): Promise<
   return { ok: t.group.invitesSent };
 }
 
-/** 接受或婉拒邀请 */
+/** Accepts or declines an invite */
 export async function respondInvite(formData: FormData) {
   const { locale } = await getActionI18n();
   const sid = await currentStudentId();
@@ -335,7 +335,7 @@ export async function respondInvite(formData: FormData) {
   redirect(localePath(locale, `/groups/${invite.groupId}`));
 }
 
-/** 互补匹配：请 Gemini 评估并缓存结果 */
+/** Complementary matching: asks Gemini to score candidates and caches the result */
 export async function findComplements(formData: FormData) {
   const { locale, t } = await getActionI18n();
   const to = (path: string) => localePath(locale, path);
@@ -364,7 +364,7 @@ export async function findComplements(formData: FormData) {
   redirect(to("/me?mode=complement"));
 }
 
-/** 退出小组：最后一人退出时连同小组数据一起删除 */
+/** Leaves a group; when the last member leaves, the group and its data are deleted */
 export async function leaveGroup(formData: FormData) {
   const { locale } = await getActionI18n();
   const ctx = await requireMember(String(formData.get("groupId")));
@@ -384,7 +384,7 @@ export async function leaveGroup(formData: FormData) {
   } else {
     const members = await db.select().from(students).where(inArray(students.id, remaining));
     await db.update(groups).set({ memberIds: remaining, meetingSlots: commonSlots(members) }).where(eq(groups.id, group.id));
-    // 取消自己在这个小组自习里的报名
+    // Remove myself from this group's study-session RSVPs
     const sessions = await db.select().from(studySessions).where(eq(studySessions.groupId, group.id));
     for (const s of sessions.filter((x) => x.attendees.includes(me.id))) {
       await db

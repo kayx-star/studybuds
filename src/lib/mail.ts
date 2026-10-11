@@ -1,7 +1,7 @@
 import "server-only";
 import nodemailer from "nodemailer";
 
-// 通过 SMTP 发邮件（Gmail / QQ 邮箱 / Outlook 等都支持），在 .env.local 里配置
+// Sends email via SMTP (works with Gmail, QQ Mail, Outlook, etc.); configure in .env.local
 const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM } = process.env;
 
 export const mailConfigured = Boolean(SMTP_HOST && SMTP_USER && SMTP_PASS);
@@ -15,14 +15,14 @@ const transport = mailConfigured
     })
   : null;
 
-/** 返回是否发送成功；未配置邮件服务时返回 false */
+/** Returns whether the email was sent; false when no mail service is configured */
 export async function sendMail(to: string, subject: string, text: string) {
   if (!transport) return false;
   try {
     await transport.sendMail({ from: MAIL_FROM ?? SMTP_USER, to, subject, text });
     return true;
   } catch (err) {
-    console.error("[mail] 发送失败：", err);
+    console.error("[mail] send failed:", err);
     return false;
   }
 }

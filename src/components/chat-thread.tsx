@@ -16,7 +16,7 @@ export type ChatLabels = {
   emoji: string;
 };
 
-/** 只有 1–3 个表情、没有文字的消息显示成大表情（像微信） */
+/** Messages with only 1-3 emoji and no text are shown as large emoji (like WeChat) */
 function isEmojiOnly(text: string) {
   const parts = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text.trim())].map((s) => s.segment);
   return parts.length > 0 && parts.length <= 3 && parts.every((p) => /\p{Extended_Pictographic}/u.test(p));
@@ -24,7 +24,7 @@ function isEmojiOnly(text: string) {
 
 const POLL_MS = 3000;
 
-/** 一对一聊天：每 3 秒拉一次新消息；Enter 发送，Shift+Enter 换行 */
+/** 1-on-1 chat: polls for new messages every 3 s; Enter sends, Shift+Enter adds a new line */
 export function ChatThread({
   otherId,
   initial,
@@ -45,7 +45,7 @@ export function ChatThread({
   const bottom = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
-  // 把表情插到光标位置，并把光标移到表情后面
+  // Insert the emoji at the cursor and move the cursor after it
   const insertEmoji = (emoji: string) => {
     const el = input.current;
     const start = el?.selectionStart ?? draft.length;
@@ -60,7 +60,7 @@ export function ChatThread({
   };
   const lastAt = useRef(initial.at(-1)?.at ?? 0);
 
-  // 合并新消息（按 id 去重），并记录最新时间
+  // Merge new messages (deduplicated by id) and remember the latest timestamp
   const merge = (incoming: ChatMessage[]) => {
     if (incoming.length === 0) return;
     setList((prev) => {
@@ -76,7 +76,7 @@ export function ChatThread({
         const res = await fetch(`${pollUrl}?after=${lastAt.current}`, { cache: "no-store" });
         if (res.ok) merge((await res.json()).messages);
       } catch {
-        // 网络抖动时下一轮再试
+        // On a network hiccup, just try again next round
       }
     }, POLL_MS);
     return () => clearInterval(timer);
