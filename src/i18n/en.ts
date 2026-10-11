@@ -5,11 +5,11 @@ const s = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many
 export const en: Dict = {
   geminiLanguage: "English",
   meta: {
-    title: "Study Buddy",
+    title: "StudyBuds",
     description: "Match with classmates by course, schedule and learning style, and form study groups",
   },
   nav: {
-    brand: "📚 Study Buddy",
+    brand: "📚 StudyBuds",
     profile: "My profile",
     matches: "Matches & groups",
     login: "Log in",
@@ -109,9 +109,9 @@ export const en: Dict = {
     resetting: "Saving…",
     resetDone: "Your password has been reset. Please log in with your new password.",
     backToLogin: "← Back to log in",
-    emailSubject: "Reset your Study Buddy password",
+    emailSubject: "Reset your StudyBuds password",
     emailBody: (link) =>
-      `Hi!\n\nWe received a request to reset the password for your Study Buddy account. Open the link below within 30 minutes to set a new password:\n\n${link}\n\nIf you didn't request this, you can ignore this email and your password won't change.`,
+      `Hi!\n\nWe received a request to reset the password for your StudyBuds account. Open the link below within 30 minutes to set a new password:\n\n${link}\n\nIf you didn't request this, you can ignore this email and your password won't change.`,
     errors: {
       invalidEmail: "Please enter a valid email",
       passwordTooShort: "Password must be at least 8 characters",
@@ -421,7 +421,7 @@ export const en: Dict = {
     },
     readme: (group) => `# ${group}
 
-Group code exported from Study Buddy.
+Group code exported from StudyBuds.
 
 ## Check and run in VS Code
 1. Install JDK 17 or later: https://adoptium.net

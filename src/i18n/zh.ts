@@ -4,11 +4,11 @@ import type { PlanStep } from "@/db/schema";
 export const zh = {
   geminiLanguage: "简体中文",
   meta: {
-    title: "学习搭子",
+    title: "StudyBuds",
     description: "按课程、时间、学习风格匹配同学，组成学习小组",
   },
   nav: {
-    brand: "📚 学习搭子",
+    brand: "📚 StudyBuds",
     profile: "我的资料",
     matches: "匹配与小组",
     login: "登录",
@@ -104,9 +104,9 @@ export const zh = {
     resetting: "保存中…",
     resetDone: "密码已重设，请用新密码登录。",
     backToLogin: "← 返回登录",
-    emailSubject: "重设你的学习搭子密码",
+    emailSubject: "重设你的 StudyBuds 密码",
     emailBody: (link: string) =>
-      `你好！\n\n我们收到了重设你学习搭子账号密码的请求。请在 30 分钟内打开下面的链接设置新密码：\n\n${link}\n\n如果这不是你本人的操作，忽略这封邮件即可，你的密码不会改变。`,
+      `你好！\n\n我们收到了重设你 StudyBuds 账号密码的请求。请在 30 分钟内打开下面的链接设置新密码：\n\n${link}\n\n如果这不是你本人的操作，忽略这封邮件即可，你的密码不会改变。`,
     errors: {
       invalidEmail: "请输入有效的邮箱",
       passwordTooShort: "密码至少 8 位",
@@ -418,7 +418,7 @@ export const zh = {
     },
     readme: (group: string) => `# ${group}
 
-由“学习搭子”导出的小组代码。
+由 StudyBuds 导出的小组代码。
 
 ## 用 VS Code 检查与运行
 1. 安装 JDK 17 或更高版本：https://adoptium.net

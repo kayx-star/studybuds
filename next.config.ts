@@ -4,12 +4,6 @@ const nextConfig: NextConfig = {
   /* config options here */
   // Allow 127.0.0.1 in dev (it keeps logins separate from localhost, handy for testing two accounts at once)
   allowedDevOrigins: ["127.0.0.1"],
-  experimental: {
-    serverActions: {
-      // When shared through a Cloudflare quick tunnel the browser origin is *.trycloudflare.com; allow it to call Server Actions
-      allowedOrigins: ["*.trycloudflare.com"],
-    },
-  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

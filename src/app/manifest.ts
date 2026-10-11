@@ -4,8 +4,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     // Home-screen app name, bilingual on purpose (Chinese + English)
-    name: "学习搭子 Study Buddy",
-    short_name: "学习搭子",
+    name: "StudyBuds",
+    short_name: "StudyBuds",
     description: "按课程、时间、学习风格匹配学习搭子 · Find study buddies by course, schedule and style",
     start_url: "/",
     scope: "/",

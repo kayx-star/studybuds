@@ -1,4 +1,4 @@
-# 📚 Study Buddy · 学习搭子
+# 📚 StudyBuds
 
 **Find study partners at Rutgers by subject, course section, schedule and study style — then study together with AI help.**
 按科目、具体课程班级（Index）、空闲时间和学习风格匹配 Rutgers 同学，组成学习小组，并用 Gemini 辅助学习。
@@ -76,7 +76,7 @@ src/data/              Rutgers NB Fall 2026 undergraduate courses (compact JSON)
 
 ## 中文简介
 
-学习搭子帮 Rutgers 同学找到**同课、同时间、同节奏**的学习伙伴：
+StudyBuds 帮 Rutgers 同学找到**同课、同时间、同节奏**的学习伙伴：
 
 - **匹配**：选择科目（Subject），可选填具体课程或 Index 班级；同一门课、同一个班的同学优先推荐，并给出推荐理由。
 - **组队**：手动勾选或让 Gemini 挑人后发邀请，对方接受才入组。

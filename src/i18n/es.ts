@@ -5,11 +5,11 @@ const s = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many
 export const es: Dict = {
   geminiLanguage: "español",
   meta: {
-    title: "Compañeros de Estudio",
+    title: "StudyBuds",
     description: "Encuentra compañeros por asignatura, horario y estilo de aprendizaje, y forma grupos de estudio",
   },
   nav: {
-    brand: "📚 Compañeros de Estudio",
+    brand: "📚 StudyBuds",
     profile: "Mi perfil",
     matches: "Coincidencias y grupos",
     login: "Iniciar sesión",
@@ -109,9 +109,9 @@ export const es: Dict = {
     resetting: "Guardando…",
     resetDone: "Tu contraseña se ha restablecido. Inicia sesión con la nueva contraseña.",
     backToLogin: "← Volver a iniciar sesión",
-    emailSubject: "Restablece tu contraseña de Compañeros de Estudio",
+    emailSubject: "Restablece tu contraseña de StudyBuds",
     emailBody: (link) =>
-      `¡Hola!\n\nHemos recibido una solicitud para restablecer la contraseña de tu cuenta de Compañeros de Estudio. Abre este enlace en los próximos 30 minutos para elegir una nueva contraseña:\n\n${link}\n\nSi no lo has solicitado tú, ignora este correo y tu contraseña no cambiará.`,
+      `¡Hola!\n\nHemos recibido una solicitud para restablecer la contraseña de tu cuenta de StudyBuds. Abre este enlace en los próximos 30 minutos para elegir una nueva contraseña:\n\n${link}\n\nSi no lo has solicitado tú, ignora este correo y tu contraseña no cambiará.`,
     errors: {
       invalidEmail: "Introduce un correo válido",
       passwordTooShort: "La contraseña debe tener al menos 8 caracteres",
@@ -422,7 +422,7 @@ export const es: Dict = {
     },
     readme: (group) => `# ${group}
 
-Código del grupo exportado desde Compañeros de Estudio.
+Código del grupo exportado desde StudyBuds.
 
 ## Comprobar y ejecutar en VS Code
 1. Instala JDK 17 o superior: https://adoptium.net
