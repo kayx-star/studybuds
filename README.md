@@ -5,7 +5,7 @@
 
 Available in **中文 / English / Español**.
 
-🔗 **Live:** https://studybuds.vercel.app
+🔗 **Live:** https://studybuds.tech
 
 ---
 
