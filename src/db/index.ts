@@ -17,9 +17,16 @@ async function setup() {
   await client.executeMultiple(DDL);
   for (const sql of MIGRATIONS) await client.execute(sql).catch(() => {});
 }
-const ready = setup();
+// Run setup lazily on first real use, not at import time: with a remote (Turso) client, a fetch started
+// while Next.js is prerendering gets rejected when the prerender ends, and a cached rejected promise would
+// break every later request. Retry on failure.
+let ready: Promise<void> | null = null;
 
 export async function getDb() {
+  ready ??= setup().catch((err) => {
+    ready = null;
+    throw err;
+  });
   await ready;
   return db;
 }
